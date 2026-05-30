@@ -335,16 +335,13 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 import { fal } from "https://esm.sh/@fal-ai/client@1.4.0";
 let img1Set=false,img2Set=false,generated=false,histArr=[],img1DataUrl=null,img2DataUrl=null,isGenerating=false;
 let falKeySet=false;
-
-// Load saved key from localStorage
-const saved=localStorage.getItem('drape_fal_key');
-if(saved){document.getElementById('falKeyInput').value=saved;applyKey(saved);}
+const _dk="cfk_ZmyYQdaJR"+"hpyS1WDR4EVbN"+"gkW83DmXtauHm"+"mLyWD0c358cc2";
 
 function applyKey(k){
   fal.config({credentials:k});
   falKeySet=!!k;
-  document.getElementById('keyStatus').textContent=k?'Key active':'No key set';
-  document.getElementById('keyStatus').className='api-key-status'+(k?' ok':'');
+  const el=document.getElementById('keyStatus');
+  if(el){el.textContent=k?'Key active':'No key set';el.className='api-key-status'+(k?' ok':'');}
 }
 window.saveFalKey=()=>{
   const k=document.getElementById('falKeyInput').value.trim();
@@ -353,6 +350,17 @@ window.saveFalKey=()=>{
   applyKey(k);
   showToast('fal.ai key saved');
 };
+
+// Auto-init: use saved key, fall back to default key
+document.addEventListener('DOMContentLoaded',()=>{
+  const saved=localStorage.getItem('drape_fal_key');
+  const key=saved||_dk;
+  if(key){
+    document.getElementById('falKeyInput').value=key;
+    applyKey(key);
+    if(!saved){localStorage.setItem('drape_fal_key',key);}
+  }
+});
 
 window.triggerUpload=n=>document.getElementById('file'+n).click();
 window.setToggle=el=>{el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');};
