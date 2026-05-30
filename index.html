@@ -39,8 +39,7 @@ nav a:hover{color:var(--ink)}
 .upload-card{background:var(--card-bg);border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;transition:all .35s;aspect-ratio:3/4;display:flex;flex-direction:column}
 .upload-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 20px 60px rgba(26,22,18,.12)}
 .upload-card.has-image .upload-placeholder{opacity:0;pointer-events:none}
-.upload-card.has-image .uploaded-img{opacity:1}
-.card-tag{position:absolute;top:20px;left:20px;background:var(--ink);color:var(--cream);font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;padding:6px 14px;z-index:10}
+.upload-card.has-image .card-tag{position:absolute;top:20px;left:20px;background:var(--ink);color:var(--cream);font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;padding:6px 14px;z-index:10}
 .card-num{position:absolute;top:20px;right:20px;font-family:'Bebas Neue',sans-serif;font-size:3.5rem;color:rgba(26,22,18,.06);line-height:1;z-index:2;pointer-events:none}
 .upload-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;transition:opacity .3s;z-index:5}
 .upload-icon{width:56px;height:56px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--warm-gray);transition:all .3s}
@@ -392,21 +391,36 @@ function handleUpload(e, n) {
   var reader = new FileReader();
   reader.onload = function(ev) {
     var u = ev.target.result;
-    $('img' + n).src = u;
-    $('preview' + n).style.opacity = '1';
-    $('card' + n).classList.add('has-image');
+    // Set image src
+    var imgEl = $('img' + n);
+    if (imgEl) imgEl.src = u;
+    // Show preview - force both class and inline style
+    var previewEl = $('preview' + n);
+    if (previewEl) {
+      previewEl.style.opacity = '1';
+      previewEl.style.zIndex = '3';
+    }
+    // Add has-image class to card
+    var cardEl = $('card' + n);
+    if (cardEl) cardEl.classList.add('has-image');
+    // Store data
     if (n === 1) { state.img1Set = true; state.img1Data = u; }
     else         { state.img2Set = true; state.img2Data = u; }
     showToast(n === 1 ? 'Portrait uploaded' : 'Outfit uploaded');
   };
+  reader.onerror = function() { showToast('Failed to read image. Try again.'); };
   reader.readAsDataURL(f);
 }
 
 function removeImage(n) {
-  $('img' + n).src = '';
-  $('preview' + n).style.opacity = '0';
-  $('card' + n).classList.remove('has-image');
-  $('file' + n).value = '';
+  var imgEl = $('img' + n);
+  var previewEl = $('preview' + n);
+  var cardEl = $('card' + n);
+  var fileEl = $('file' + n);
+  if (imgEl) imgEl.src = '';
+  if (previewEl) { previewEl.style.opacity = '0'; previewEl.style.zIndex = ''; }
+  if (cardEl) cardEl.classList.remove('has-image');
+  if (fileEl) fileEl.value = '';
   if (n === 1) { state.img1Set = false; state.img1Data = null; }
   else         { state.img2Set = false; state.img2Data = null; }
   showToast('Image removed');
