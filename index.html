@@ -213,7 +213,8 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 <div class="app-section">
   <div class="section-label">Virtual Try-On Studio</div>
   <div class="upload-grid">
-    <div class="upload-card" id="card1" onclick="triggerUpload(1)">
+    <label class="upload-card has-file-input" id="card1" style="cursor:pointer;">
+      <input type="file" id="file1" accept="image/*" onchange="handleUpload(event,1)" style="display:none;">
       <div class="card-tag">Your Photo</div><div class="card-num">01</div>
       <div class="upload-placeholder">
         <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
@@ -224,28 +225,33 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
       <div class="uploaded-img" id="preview1"><img id="img1" src="" alt="Your photo"><div class="img-overlay"></div>
         <div class="img-actions">
           <span style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.8)">Portrait &#10003;</span>
-          <div style="display:flex;gap:8px"><button class="img-action-btn" onclick="event.stopPropagation();triggerUpload(1)">Change</button><button class="img-action-btn remove" onclick="event.stopPropagation();removeImage(1)">Remove</button></div>
+          <div style="display:flex;gap:8px;">
+            <button class="img-action-btn" onclick="event.preventDefault();event.stopPropagation();document.getElementById('file1').click()">Change</button>
+            <button class="img-action-btn remove" onclick="event.preventDefault();event.stopPropagation();removeImage(1)">Remove</button>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="upload-card" id="card2" onclick="triggerUpload(2)">
+    </label>
+    <label class="upload-card has-file-input" id="card2" style="cursor:pointer;">
+      <input type="file" id="file2" accept="image/*" onchange="handleUpload(event,2)" style="display:none;">
       <div class="card-tag">Outfit Reference</div><div class="card-num">02</div>
       <div class="upload-placeholder">
-        <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg></div>
-        <div class="upload-label">Upload<br>Outfit Image</div>
-        <div class="upload-sub">Product flat-lay or model wearing it</div>
+        <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg></div>
+        <div class="upload-label">Upload Outfit<br>Reference</div>
+        <div class="upload-sub">Garment photo or style inspiration</div>
         <div class="upload-formats"><span class="fmt-tag">JPG</span><span class="fmt-tag">PNG</span><span class="fmt-tag">WEBP</span></div>
       </div>
-      <div class="uploaded-img" id="preview2"><img id="img2" src="" alt="Outfit reference"><div class="img-overlay"></div>
+      <div class="uploaded-img" id="preview2"><img id="img2" src="" alt="Outfit"><div class="img-overlay"></div>
         <div class="img-actions">
           <span style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.8)">Outfit &#10003;</span>
-          <div style="display:flex;gap:8px"><button class="img-action-btn" onclick="event.stopPropagation();triggerUpload(2)">Change</button><button class="img-action-btn remove" onclick="event.stopPropagation();removeImage(2)">Remove</button></div>
+          <div style="display:flex;gap:8px;">
+            <button class="img-action-btn" onclick="event.preventDefault();event.stopPropagation();document.getElementById('file2').click()">Change</button>
+            <button class="img-action-btn remove" onclick="event.preventDefault();event.stopPropagation();removeImage(2)">Remove</button>
+          </div>
         </div>
       </div>
-    </div>
+    </label>
   </div>
-  <input type="file" id="file1" accept="image/*" onchange="handleUpload(event,1)">
-  <input type="file" id="file2" accept="image/*" onchange="handleUpload(event,2)">
   <div class="settings-row">
     <div class="setting-group"><label class="setting-label">Garment Type</label><select class="setting-select"><option>Upper Body</option><option>Lower Body</option><option>Full Body</option><option>Dress / One-piece</option><option>Outerwear</option></select></div>
     <div class="setting-group"><label class="setting-label">Output Quality</label><select class="setting-select"><option>Standard (768px)</option><option>High Res (1024px)</option><option>Ultra HD (2048px)</option></select></div>
