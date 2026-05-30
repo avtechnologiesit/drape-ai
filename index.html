@@ -144,6 +144,30 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 .fade-up:nth-child(1){animation-delay:.1s}.fade-up:nth-child(2){animation-delay:.2s}
 @media(max-width:1024px){.result-container,.hero{grid-template-columns:1fr}.settings-row{grid-template-columns:1fr 1fr}.how-grid{grid-template-columns:1fr}.history-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:768px){header{padding:20px 24px}nav{display:none}.hero,.app-section{padding:40px 24px 60px}.upload-grid{grid-template-columns:1fr}.generate-area{flex-direction:column}.history-grid{grid-template-columns:repeat(2,1fr)}.how-section{padding:60px 24px}footer{flex-direction:column;gap:20px;text-align:center}}
+
+.model-selector-bar{background:var(--ink);padding:14px 48px;display:flex;align-items:center;gap:24px;border-bottom:2px solid var(--gold)}
+.model-selector-bar label{font-size:0.62rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);white-space:nowrap}
+.model-select-input{background:transparent;border:1px solid rgba(201,168,76,.4);color:var(--cream);font-family:'DM Mono',monospace;font-size:0.72rem;padding:8px 14px;flex:1;max-width:420px;cursor:pointer;outline:none}
+.model-select-input option,.model-select-input optgroup{background:#1A1612;color:var(--cream)}
+.model-select-input:hover,.model-select-input:focus{border-color:var(--gold)}
+.model-status{display:flex;align-items:center;gap:8px;margin-left:auto}
+.model-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
+.model-dot.loading{background:var(--gold)}
+.model-dot.error{background:#f87171;animation:none}
+.model-status-text{font-size:0.6rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(245,240,232,.6)}
+.ai-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.28);color:var(--gold);font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;padding:4px 10px}
+.error-card{background:#fff8f8;border:1px solid #fca5a5;padding:20px 24px;margin-bottom:24px;display:none}
+.error-card.show{display:block}
+.error-card-title{font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:#dc2626;margin-bottom:8px}
+.error-card-msg{font-size:0.72rem;color:#7f1d1d;line-height:1.6}
+.api-key-bar{background:rgba(201,168,76,.08);border-bottom:1px solid rgba(201,168,76,.2);padding:10px 48px;display:flex;align-items:center;gap:16px}
+.api-key-bar label{font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray);white-space:nowrap}
+.api-key-input{background:var(--card-bg);border:1px solid var(--border);font-family:'DM Mono',monospace;font-size:0.68rem;padding:7px 12px;flex:1;max-width:360px;color:var(--ink);outline:none}
+.api-key-input:focus{border-color:var(--gold)}
+.api-key-save{background:var(--ink);color:var(--cream);border:none;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;padding:8px 18px;cursor:pointer}
+.api-key-save:hover{background:var(--gold);color:var(--ink)}
+.api-key-status{font-size:0.6rem;letter-spacing:0.12em;color:var(--warm-gray)}
+.api-key-status.ok{color:#16a34a}
 </style>
 </head>
 <body>
@@ -151,6 +175,32 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
   <a href="#" class="logo">DRA<span>P</span>E</a>
   <nav><a href="#">How It Works</a><a href="#">Gallery</a><a href="#">Pricing</a><a href="#">API</a><a href="#" class="nav-cta">Get Started</a></nav>
 </header>
+<div class="api-key-bar" id="apiKeyBar">
+  <label>fal.ai Key</label>
+  <input class="api-key-input" id="falKeyInput" type="password" placeholder="cfk_... or fal_... paste your fal.ai API key" />
+  <button class="api-key-save" onclick="saveFalKey()">Save Key</button>
+  <span class="api-key-status" id="keyStatus">No key set</span>
+</div>
+<div class="model-selector-bar" id="modelBar">
+  <label>AI Model</label>
+  <select class="model-select-input" id="modelSelect">
+    <optgroup label="Virtual Try-On (Recommended)">
+      <option value="fal-ai/idm-vton">IDM-VTON - Photorealistic Try-On</option>
+      <option value="fal-ai/cat-vton">CatVTON - Fast Virtual Try-On</option>
+    </optgroup>
+    <optgroup label="Image Generation">
+      <option value="fal-ai/flux/schnell">FLUX Schnell - Ultra Fast</option>
+      <option value="fal-ai/flux/dev">FLUX Dev - High Quality</option>
+      <option value="fal-ai/stable-diffusion-v3-medium">Stable Diffusion 3 Medium</option>
+      <option value="fal-ai/aura-flow">AuraFlow</option>
+    </optgroup>
+  </select>
+  <span class="ai-badge">&#9679; Live AI</span>
+  <div class="model-status">
+    <div class="model-dot" id="modelDot"></div>
+    <span class="model-status-text" id="modelStatusText">Ready</span>
+  </div>
+</div>
 <section class="hero">
   <div class="hero-text fade-up">
     <h1>Wear it<br>before<br>you <em>buy it.</em></h1>
@@ -216,6 +266,7 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
     <button class="btn-secondary" onclick="shuffleOutfit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>Randomise</button>
     <button class="btn-secondary" onclick="clearAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear All</button>
   </div>
+  <div class="error-card" id="errorCard"><div class="error-card-title">&#9888; Generation Error</div><div class="error-card-msg" id="errorMsg"></div></div>
   <div class="result-section" id="resultSection">
     <div class="section-label">Generated Result</div>
     <div class="result-container">
@@ -280,25 +331,81 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 </footer>
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-logo">DRA<span>P</span>E</div><div class="loading-bar-track"><div class="loading-bar-fill"></div></div><div class="loading-text" id="loadingText">Analyzing your portrait...</div></div>
 <div class="toast" id="toast"><div class="toast-dot"></div><span id="toastMsg">Action completed</span></div>
-<script>
-let img1Set=false,img2Set=false,generated=false,histArr=[];
-function triggerUpload(n){document.getElementById('file'+n).click()}
-function handleUpload(e,n){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const u=ev.target.result;document.getElementById('img'+n).src=u;document.getElementById('preview'+n).style.opacity='1';document.getElementById('card'+n).classList.add('has-image');n===1?img1Set=true:img2Set=true;showToast('Image '+(n===1?'portrait':'outfit')+' uploaded ✓')};r.readAsDataURL(f)}
-function removeImage(n){document.getElementById('img'+n).src='';document.getElementById('preview'+n).style.opacity='0';document.getElementById('card'+n).classList.remove('has-image');document.getElementById('file'+n).value='';n===1?img1Set=false:img2Set=false;showToast('Image removed')}
-function setToggle(el){el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
-const msgs=['Analyzing your portrait...','Extracting outfit texture...','Fitting garment to your body...','Rendering fabric & lighting...','Adding final polish...'];
-function startGeneration(){if(!img1Set||!img2Set){showToast('Please upload both images first');if(!img1Set)shake('card1');if(!img2Set)shake('card2');return}const ov=document.getElementById('loadingOverlay');ov.classList.add('active');let i=0;const iv=setInterval(()=>{i=(i+1)%msgs.length;document.getElementById('loadingText').textContent=msgs[i]},900);setTimeout(()=>{clearInterval(iv);ov.classList.remove('active');showResult()},2500)}
-function shake(id){const c=document.getElementById(id);c.style.animation='shake .4s ease';setTimeout(()=>c.style.animation='',400)}
+<script type="module">
+import { fal } from "https://esm.sh/@fal-ai/client@1.4.0";
+let img1Set=false,img2Set=false,generated=false,histArr=[],img1DataUrl=null,img2DataUrl=null,isGenerating=false;
+let falKeySet=false;
+
+// Load saved key from localStorage
+const saved=localStorage.getItem('drape_fal_key');
+if(saved){document.getElementById('falKeyInput').value=saved;applyKey(saved);}
+
+function applyKey(k){
+  fal.config({credentials:k});
+  falKeySet=!!k;
+  document.getElementById('keyStatus').textContent=k?'Key active':'No key set';
+  document.getElementById('keyStatus').className='api-key-status'+(k?' ok':'');
+}
+window.saveFalKey=()=>{
+  const k=document.getElementById('falKeyInput').value.trim();
+  if(!k){showToast('Enter a fal.ai API key first');return;}
+  localStorage.setItem('drape_fal_key',k);
+  applyKey(k);
+  showToast('fal.ai key saved');
+};
+
+window.triggerUpload=n=>document.getElementById('file'+n).click();
+window.setToggle=el=>{el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');};
+window.handleUpload=(e,n)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const u=ev.target.result;document.getElementById('img'+n).src=u;document.getElementById('preview'+n).style.opacity='1';document.getElementById('card'+n).classList.add('has-image');if(n===1){img1Set=true;img1DataUrl=u;}else{img2Set=true;img2DataUrl=u;}showToast('Image '+(n===1?'portrait':'outfit')+' uploaded');};r.readAsDataURL(f);};
+window.removeImage=n=>{document.getElementById('img'+n).src='';document.getElementById('preview'+n).style.opacity='0';document.getElementById('card'+n).classList.remove('has-image');document.getElementById('file'+n).value='';if(n===1){img1Set=false;img1DataUrl=null;}else{img2Set=false;img2DataUrl=null;}showToast('Image removed');};
+window.downloadResult=()=>{if(!generated){showToast('Generate first');return;}const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...');};
+window.shareResult=()=>{if(!generated){showToast('Generate first');return;}if(navigator.share)navigator.share({title:'My DRAPE Try-On',url:window.location.href});else{navigator.clipboard?.writeText(window.location.href);showToast('Link copied!');}};
+window.tryAnother=()=>{document.getElementById('resultImage').classList.remove('show');document.getElementById('matchScore').textContent='--';['bar1','bar2','bar3','bar4'].forEach(id=>{document.getElementById(id).style.setProperty('--w','0%');document.getElementById(id+'val').textContent='--';});generated=false;window.removeImage(2);document.querySelector('.app-section').scrollIntoView({behavior:'smooth'});};
+window.saveToGallery=()=>{if(!generated){showToast('Generate first');return;}showToast('Saved to gallery');};
+window.shuffleOutfit=()=>showToast('Generating outfit suggestion...');
+window.clearAll=()=>{window.removeImage(1);window.removeImage(2);generated=false;document.getElementById('resultSection').classList.remove('visible');document.getElementById('errorCard').classList.remove('show');showToast('Cleared');};
+
 const ss=document.createElement('style');ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';document.head.appendChild(ss);
-function showResult(){generated=true;const sec=document.getElementById('resultSection');sec.classList.add('visible');document.getElementById('resultImg').src=document.getElementById('img1').src;setTimeout(()=>document.getElementById('resultImage').classList.add('show'),300);setTimeout(()=>{document.getElementById('matchScore').textContent='94%';[['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(([id,v])=>{document.getElementById(id).style.setProperty('--w',v+'%');document.getElementById(id+'val').textContent=v+'%'})},600);addToHistory(document.getElementById('img1').src);setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),400);showToast('Try-on generated successfully ✓')}
-function addToHistory(src){histArr.unshift(src);if(histArr.length>5)histArr=histArr.slice(0,5);const g=document.getElementById('historyGrid');g.innerHTML='';histArr.forEach((s,i)=>{const d=document.createElement('div');d.className='history-item';d.innerHTML='<img src="'+s+'" alt="History '+i+'"><div class="img-overlay"></div>';g.appendChild(d)});for(let i=histArr.length;i<5;i++){const d=document.createElement('div');d.className='history-item history-empty';g.appendChild(d)}}
-function downloadResult(){if(!generated){showToast('Generate a try-on first');return}const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...')}
-function shareResult(){if(!generated){showToast('Generate a try-on first');return}if(navigator.share)navigator.share({title:'My DRAPE Try-On',url:window.location.href});else{navigator.clipboard&&navigator.clipboard.writeText(window.location.href);showToast('Link copied!')}}
-function tryAnother(){document.getElementById('resultImage').classList.remove('show');document.getElementById('matchScore').textContent='—';['bar1','bar2','bar3','bar4'].forEach(id=>{document.getElementById(id).style.setProperty('--w','0%');document.getElementById(id+'val').textContent='—'});generated=false;removeImage(2);document.querySelector('.app-section').scrollIntoView({behavior:'smooth'})}
-function saveToGallery(){if(!generated){showToast('Generate a try-on first');return}showToast('Saved to gallery ♥')}
-function shuffleOutfit(){showToast('Generating outfit suggestion...')}
-function clearAll(){removeImage(1);removeImage(2);generated=false;document.getElementById('resultSection').classList.remove('visible');showToast('Cleared')}
-function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)}
+function shake(id){const c=document.getElementById(id);c.style.animation='shake .4s ease';setTimeout(()=>c.style.animation='',400);}
+function setStatus(s,t){const d=document.getElementById('modelDot'),x=document.getElementById('modelStatusText');d.className='model-dot'+(s==='loading'?' loading':s==='error'?' error':'');x.textContent=t;}
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+const loadMsgs=['Uploading images to AI...','Analyzing body proportions...','Fitting garment texture...','Rendering fabric and lighting...','Finalising your look...'];
+
+async function callFalAI(model,p,g,gt){
+  if(model==='fal-ai/idm-vton')return await fal.subscribe('fal-ai/idm-vton',{input:{human_image_url:p,garment_image_url:g,garment_des:gt+' garment',is_checked:true,is_checked_crop:false,denoise_steps:30,seed:42},pollInterval:2500,logs:false});
+  if(model==='fal-ai/cat-vton'){const ct=gt.toLowerCase().includes('upper')?'upper':gt.toLowerCase().includes('lower')?'lower':'overall';return await fal.subscribe('fal-ai/cat-vton',{input:{human_image_url:p,garment_image_url:g,cloth_type:ct},pollInterval:2500});}
+  const prompt='Professional fashion editorial, person wearing '+gt+' clothing, photorealistic, studio lighting, 8k';
+  return await fal.subscribe(model,{input:{prompt,num_images:1,image_size:'portrait_4_3',num_inference_steps:28,guidance_scale:3.5},pollInterval:2500});
+}
+
+window.startGeneration=async()=>{
+  if(isGenerating)return;
+  if(!falKeySet){showToast('Enter your fal.ai API key above first');document.getElementById('falKeyInput').focus();return;}
+  if(!img1Set||!img2Set){showToast('Please upload both images first');if(!img1Set)shake('card1');if(!img2Set)shake('card2');return;}
+  const model=document.getElementById('modelSelect').value;
+  const gt=document.querySelector('.settings-row .setting-select').value;
+  const ov=document.getElementById('loadingOverlay'),ec=document.getElementById('errorCard');
+  isGenerating=true;ec.classList.remove('show');ov.classList.add('active');setStatus('loading','Generating...');
+  let mi=0;document.getElementById('loadingText').textContent=loadMsgs[0];
+  const iv=setInterval(()=>{mi=(mi+1)%loadMsgs.length;document.getElementById('loadingText').textContent=loadMsgs[mi];},1800);
+  try{
+    const result=await callFalAI(model,img1DataUrl,img2DataUrl,gt);
+    clearInterval(iv);ov.classList.remove('active');
+    const url=result?.images?.[0]?.url||result?.image?.url||result?.output?.images?.[0]?.url||null;
+    if(!url)throw new Error('No image in response: '+JSON.stringify(result).slice(0,200));
+    setStatus('ready','Done');showResultImage(url);showToast('Generated with '+model.split('/').pop());
+  }catch(err){
+    clearInterval(iv);ov.classList.remove('active');setStatus('error','Error');
+    const msg=err?.message||String(err);console.error('[DRAPE]',err);
+    ec.classList.add('show');
+    document.getElementById('errorMsg').textContent=msg.includes('Authentication')||msg.includes('auth')?'Auth failed for "'+model+'". Check your fal.ai key or try a different model.':msg.includes('quota')?'API quota exceeded.':'Generation failed: '+msg.slice(0,300);
+    showToast('Generation failed');
+  }
+  isGenerating=false;setStatus('ready','Ready');
+};
+
+function showResultImage(url){generated=true;const sec=document.getElementById('resultSection');sec.classList.add('visible');document.getElementById('resultImg').src=url;setTimeout(()=>document.getElementById('resultImage').classList.add('show'),300);setTimeout(()=>{document.getElementById('matchScore').textContent='AI';[['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(([id,v])=>{document.getElementById(id).style.setProperty('--w',v+'%');document.getElementById(id+'val').textContent=v+'%';});},600);addToHistory(url);setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),400);}
+function addToHistory(src){histArr.unshift(src);if(histArr.length>5)histArr=histArr.slice(0,5);const g=document.getElementById('historyGrid');g.innerHTML='';histArr.forEach((s,i)=>{const d=document.createElement('div');d.className='history-item';d.innerHTML='<img src="'+s+'" alt="h'+i+'"><div class="img-overlay"></div>';g.appendChild(d);});for(let i=histArr.length;i<5;i++){const d=document.createElement('div');d.className='history-item history-empty';g.appendChild(d);}}
 </script>
 </body>
 </html>
