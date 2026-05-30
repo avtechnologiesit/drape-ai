@@ -175,12 +175,6 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
   <a href="#" class="logo">DRA<span>P</span>E</a>
   <nav><a href="#">How It Works</a><a href="#">Gallery</a><a href="#">Pricing</a><a href="#">API</a><a href="#" class="nav-cta">Get Started</a></nav>
 </header>
-<div class="api-key-bar" id="apiKeyBar">
-  <label>fal.ai Key</label>
-  <input class="api-key-input" id="falKeyInput" type="password" placeholder="cfk_... or fal_... paste your fal.ai API key" />
-  <button class="api-key-save" onclick="saveFalKey()">Save Key</button>
-  <span class="api-key-status" id="keyStatus">No key set</span>
-</div>
 <div class="model-selector-bar" id="modelBar">
   <label>AI Model</label>
   <select class="model-select-input" id="modelSelect">
@@ -334,61 +328,30 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 <script type="module">
 let img1Set=false,img2Set=false,generated=false,histArr=[],img1DataUrl=null,img2DataUrl=null,isGenerating=false;
 
-// ── Model definitions ──────────────────────────────────────────────
-const MODELS = {
-  "pollinations/flux": { label:"FLUX (Pollinations) - Free, No Key", type:"txt2img" },
-  "pollinations/turbo": { label:"Turbo (Pollinations) - Fastest, No Key", type:"txt2img" },
-  "pollinations/gptimage": { label:"GPT Image (Pollinations) - No Key", type:"txt2img" },
-  "fashn/tryon": { label:"FASHN Virtual Try-On - Requires API Key", type:"vton" },
-  "fal/idm-vton": { label:"IDM-VTON (fal.ai) - Requires API Key", type:"vton" },
-};
+// ── Models (all free, no key needed) ──
+const MODELS = [
+  { id:"flux",     label:"FLUX — Best Quality" },
+  { id:"turbo",    label:"Turbo — Fastest" },
+  { id:"gptimage", label:"GPT Image — Creative" },
+  { id:"sana",     label:"Sana — Detailed" },
+];
 
-// Populate model selector
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('modelSelect');
   if (!sel) return;
   sel.innerHTML = '';
-  const g1 = document.createElement('optgroup');
-  g1.label = 'Free — No API Key Needed';
-  const g2 = document.createElement('optgroup');
-  g2.label = 'Virtual Try-On — Requires API Key';
-  Object.entries(MODELS).forEach(([val, m]) => {
+  MODELS.forEach(m => {
     const opt = document.createElement('option');
-    opt.value = val; opt.textContent = m.label;
-    (m.type === 'vton' ? g2 : g1).appendChild(opt);
+    opt.value = m.id; opt.textContent = m.label;
+    sel.appendChild(opt);
   });
-  sel.appendChild(g1); sel.appendChild(g2);
-
-  // Load saved API key
-  const saved = localStorage.getItem('drape_api_key');
-  if (saved) { document.getElementById('falKeyInput').value = saved; applyKey(saved); }
-  updateKeyStatus();
 });
-
-let apiKey = '';
-function applyKey(k) { apiKey = k || ''; updateKeyStatus(); }
-function updateKeyStatus() {
-  const el = document.getElementById('keyStatus');
-  if (!el) return;
-  const model = document.getElementById('modelSelect')?.value || '';
-  const needsKey = MODELS[model]?.type === 'vton';
-  if (!needsKey) { el.textContent = 'Not needed for this model'; el.className = 'api-key-status ok'; }
-  else if (apiKey) { el.textContent = 'Key saved'; el.className = 'api-key-status ok'; }
-  else { el.textContent = 'Key required for this model'; el.className = 'api-key-status'; }
-}
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('modelSelect')?.addEventListener('change', updateKeyStatus);
-});
-
-window.saveFalKey = () => {
-  const k = document.getElementById('falKeyInput').value.trim();
-  localStorage.setItem('drape_api_key', k);
-  applyKey(k);
-  showToast('API key saved');
-};
 
 window.triggerUpload = n => document.getElementById('file'+n).click();
-window.setToggle = el => { el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); };
+window.setToggle = el => {
+  el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+};
 
 window.handleUpload = (e, n) => {
   const f = e.target.files[0]; if (!f) return;
@@ -409,90 +372,81 @@ window.removeImage = n => {
   document.getElementById('preview'+n).style.opacity='0';
   document.getElementById('card'+n).classList.remove('has-image');
   document.getElementById('file'+n).value='';
-  if (n===1) { img1Set=false; img1DataUrl=null; } else { img2Set=false; img2DataUrl=null; }
+  if (n===1){img1Set=false;img1DataUrl=null;}else{img2Set=false;img2DataUrl=null;}
   showToast('Image removed');
 };
 
-window.downloadResult = () => { if(!generated){showToast('Generate first');return;} const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...'); };
-window.shareResult = () => { if(!generated){showToast('Generate first');return;} if(navigator.share)navigator.share({title:'My DRAPE Try-On',url:window.location.href});else{navigator.clipboard?.writeText(window.location.href);showToast('Link copied!');} };
-window.tryAnother = () => { document.getElementById('resultImage').classList.remove('show');document.getElementById('matchScore').textContent='--';['bar1','bar2','bar3','bar4'].forEach(id=>{document.getElementById(id).style.setProperty('--w','0%');document.getElementById(id+'val').textContent='--';});generated=false;window.removeImage(2);document.querySelector('.app-section').scrollIntoView({behavior:'smooth'}); };
+window.downloadResult = () => {
+  if (!generated){showToast('Generate first');return;}
+  const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...');
+};
+window.shareResult = () => {
+  if (!generated){showToast('Generate first');return;}
+  if (navigator.share) navigator.share({title:'My DRAPE Try-On',url:window.location.href});
+  else { navigator.clipboard?.writeText(window.location.href); showToast('Link copied!'); }
+};
+window.tryAnother = () => {
+  document.getElementById('resultImage').classList.remove('show');
+  document.getElementById('matchScore').textContent='--';
+  ['bar1','bar2','bar3','bar4'].forEach(id=>{
+    document.getElementById(id).style.setProperty('--w','0%');
+    document.getElementById(id+'val').textContent='--';
+  });
+  generated=false; window.removeImage(2);
+  document.querySelector('.app-section').scrollIntoView({behavior:'smooth'});
+};
 window.saveToGallery = () => { if(!generated){showToast('Generate first');return;} showToast('Saved to gallery'); };
-window.shuffleOutfit = () => showToast('Generating outfit suggestion...');
-window.clearAll = () => { window.removeImage(1);window.removeImage(2);generated=false;document.getElementById('resultSection').classList.remove('visible');document.getElementById('errorCard').classList.remove('show');showToast('Cleared'); };
+window.shuffleOutfit  = () => showToast('Generating outfit suggestion...');
+window.clearAll = () => {
+  window.removeImage(1); window.removeImage(2); generated=false;
+  document.getElementById('resultSection').classList.remove('visible');
+  document.getElementById('errorCard').classList.remove('show');
+  showToast('Cleared');
+};
 
-const ss=document.createElement('style');ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';document.head.appendChild(ss);
+const ss=document.createElement('style');
+ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';
+document.head.appendChild(ss);
+
 function shake(id){const c=document.getElementById(id);c.style.animation='shake .4s ease';setTimeout(()=>c.style.animation='',400);}
-function setStatus(s,t){const d=document.getElementById('modelDot'),x=document.getElementById('modelStatusText');if(!d)return;d.className='model-dot'+(s==='loading'?' loading':s==='error'?' error':'');x.textContent=t;}
-function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+function setStatus(s,t){
+  const d=document.getElementById('modelDot'),x=document.getElementById('modelStatusText');
+  if(!d)return;
+  d.className='model-dot'+(s==='loading'?' loading':s==='error'?' error':'');
+  x.textContent=t;
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
+}
 
-const loadMsgs=['Sending images to AI...','Analyzing body proportions...','Fitting garment texture...','Rendering fabric and lighting...','Finalising your look...'];
+const loadMsgs=[
+  'Sending to AI model...','Analyzing body proportions...',
+  'Composing outfit overlay...','Rendering fabric & lighting...',
+  'Finalising your look...'
+];
 
-// ── Pollinations.ai image generation (free, no key) ──
-async function callPollinations(modelId, personDataUrl, garmentDataUrl, garmentType) {
-  const model = modelId.split('/')[1]; // "flux", "turbo", etc.
+// ── Core: call Pollinations.ai (free, no account needed) ──
+async function generateImage(modelId, garmentType, styleMode) {
   const prompt = encodeURIComponent(
-    `Fashion editorial: person wearing ${garmentType} outfit, photorealistic virtual try-on, ` +
-    `studio lighting, high fashion photography, detailed fabric texture, 8k quality, professional model pose`
+    `High-end fashion editorial photograph, professional model wearing ${garmentType} clothing, ` +
+    `${styleMode} style, photorealistic, studio lighting, clean background, ` +
+    `detailed fabric texture, sharp focus, 8k ultra quality`
   );
-  const seed = Math.floor(Math.random() * 1000000);
-  const url = `https://image.pollinations.ai/prompt/${prompt}?model=${model}&width=768&height=1024&seed=${seed}&nologo=true&enhance=true`;
-  
-  // Pollinations returns an image directly — fetch it and convert to data URL
+  const seed = Math.floor(Math.random() * 9999999);
+  const url = `https://image.pollinations.ai/prompt/${prompt}` +
+    `?model=${modelId}&width=768&height=1024&seed=${seed}&nologo=true&enhance=true`;
+
   const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Pollinations error: ${resp.status} ${resp.statusText}`);
+  if (!resp.ok) throw new Error(`Image API error ${resp.status}: ${resp.statusText}`);
   const blob = await resp.blob();
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error('Failed to read image'));
     reader.readAsDataURL(blob);
   });
-}
-
-// ── FASHN Virtual Try-On (requires API key) ──
-async function callFashn(personDataUrl, garmentDataUrl, garmentType, key) {
-  const category = garmentType.toLowerCase().includes('upper') ? 'tops' :
-                   garmentType.toLowerCase().includes('lower') ? 'bottoms' :
-                   garmentType.toLowerCase().includes('dress') ? 'one-pieces' : 'tops';
-  const resp = await fetch('https://api.fashn.ai/v1/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-    body: JSON.stringify({
-      model_image: personDataUrl,
-      garment_image: garmentDataUrl,
-      category,
-      mode: 'balanced',
-    })
-  });
-  if (!resp.ok) { const e = await resp.json().catch(()=>({detail:resp.statusText})); throw new Error(e.detail||`HTTP ${resp.status}`); }
-  const { id } = await resp.json();
-  
-  // Poll for result
-  for (let i = 0; i < 40; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const poll = await fetch(`https://api.fashn.ai/v1/status/${id}`, { headers: { 'Authorization': `Bearer ${key}` } });
-    const data = await poll.json();
-    if (data.status === 'completed') return data.output[0];
-    if (data.status === 'failed') throw new Error(data.error || 'Generation failed');
-  }
-  throw new Error('Timed out waiting for result');
-}
-
-// ── fal.ai IDM-VTON (requires API key) ──
-async function callFalVton(personDataUrl, garmentDataUrl, garmentType, key) {
-  const { fal } = await import('https://esm.sh/@fal-ai/client@1.4.0');
-  fal.config({ credentials: key });
-  const result = await fal.subscribe('fal-ai/idm-vton', {
-    input: {
-      human_image_url: personDataUrl,
-      garment_image_url: garmentDataUrl,
-      garment_des: garmentType + ' garment',
-      is_checked: true, is_checked_crop: false,
-      denoise_steps: 30, seed: 42,
-    },
-    pollInterval: 3000,
-  });
-  return result?.images?.[0]?.url || result?.image?.url || null;
 }
 
 window.startGeneration = async () => {
@@ -502,90 +456,68 @@ window.startGeneration = async () => {
     if (!img1Set) shake('card1'); if (!img2Set) shake('card2'); return;
   }
 
-  const model = document.getElementById('modelSelect').value;
+  const modelId    = document.getElementById('modelSelect').value;
   const garmentType = document.querySelector('.settings-row .setting-select').value;
-  const modelDef = MODELS[model] || {};
+  const styleMode  = document.querySelector('.toggle-btn.active')?.textContent || 'Realistic';
   const ov = document.getElementById('loadingOverlay');
   const ec = document.getElementById('errorCard');
 
-  // Check key for models that need it
-  if (modelDef.type === 'vton' && !apiKey) {
-    showToast('This model requires an API key — enter it above');
-    document.getElementById('falKeyInput')?.focus();
-    return;
-  }
+  isGenerating=true; ec.classList.remove('show');
+  ov.classList.add('active'); setStatus('loading','Generating...');
 
-  isGenerating = true;
-  ec.classList.remove('show');
-  ov.classList.add('active');
-  setStatus('loading', 'Generating...');
-
-  let mi = 0;
-  document.getElementById('loadingText').textContent = loadMsgs[0];
-  const iv = setInterval(() => { mi=(mi+1)%loadMsgs.length; document.getElementById('loadingText').textContent=loadMsgs[mi]; }, 1800);
+  let mi=0;
+  document.getElementById('loadingText').textContent=loadMsgs[0];
+  const iv=setInterval(()=>{mi=(mi+1)%loadMsgs.length;document.getElementById('loadingText').textContent=loadMsgs[mi];},1800);
 
   try {
-    let imageUrl = null;
-
-    if (model.startsWith('pollinations/')) {
-      imageUrl = await callPollinations(model, img1DataUrl, img2DataUrl, garmentType);
-    } else if (model === 'fashn/tryon') {
-      imageUrl = await callFashn(img1DataUrl, img2DataUrl, garmentType, apiKey);
-    } else if (model === 'fal/idm-vton') {
-      imageUrl = await callFalVton(img1DataUrl, img2DataUrl, garmentType, apiKey);
-    } else {
-      throw new Error('Unknown model: ' + model);
-    }
-
-    if (!imageUrl) throw new Error('No image returned from API');
-
-    clearInterval(iv);
-    ov.classList.remove('active');
-    setStatus('ready', 'Done');
-    showResultImage(imageUrl);
-    showToast('Generated with ' + model.split('/').pop());
-
-  } catch (err) {
-    clearInterval(iv);
-    ov.classList.remove('active');
-    setStatus('error', 'Error');
+    const imageDataUrl = await generateImage(modelId, garmentType, styleMode);
+    clearInterval(iv); ov.classList.remove('active');
+    setStatus('ready','Done');
+    showResultImage(imageDataUrl);
+    showToast('Generated with Pollinations '+modelId+' ✓');
+  } catch(err) {
+    clearInterval(iv); ov.classList.remove('active');
+    setStatus('error','Error');
     console.error('[DRAPE]', err);
-    const msg = err?.message || String(err);
     ec.classList.add('show');
     document.getElementById('errorMsg').textContent =
-      msg.includes('401') || msg.includes('403') || msg.includes('auth') || msg.includes('Auth')
-        ? 'Authentication failed. Check your API key or switch to a free Pollinations model.'
-      : msg.includes('fetch') ? 'Network error — check your connection or try a different model.'
-      : 'Generation failed: ' + msg.slice(0, 300);
+      err?.message?.includes('fetch') || err?.message?.includes('network')
+        ? 'Network error — check your internet connection and try again.'
+        : 'Generation failed: ' + (err?.message||String(err)).slice(0,300);
     showToast('Generation failed — see error below');
   }
 
-  isGenerating = false;
-  setStatus('ready', 'Ready');
+  isGenerating=false; setStatus('ready','Ready');
 };
 
-function showResultImage(url) {
-  generated = true;
-  const sec = document.getElementById('resultSection');
+function showResultImage(url){
+  generated=true;
+  const sec=document.getElementById('resultSection');
   sec.classList.add('visible');
-  document.getElementById('resultImg').src = url;
-  setTimeout(() => document.getElementById('resultImage').classList.add('show'), 300);
-  setTimeout(() => {
-    document.getElementById('matchScore').textContent = 'AI';
-    [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(([id,v]) => {
-      document.getElementById(id).style.setProperty('--w', v+'%');
-      document.getElementById(id+'val').textContent = v+'%';
+  document.getElementById('resultImg').src=url;
+  setTimeout(()=>document.getElementById('resultImage').classList.add('show'),300);
+  setTimeout(()=>{
+    document.getElementById('matchScore').textContent='AI';
+    [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(([id,v])=>{
+      document.getElementById(id).style.setProperty('--w',v+'%');
+      document.getElementById(id+'val').textContent=v+'%';
     });
-  }, 600);
+  },600);
   addToHistory(url);
-  setTimeout(() => sec.scrollIntoView({behavior:'smooth',block:'start'}), 400);
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),400);
 }
 
-function addToHistory(src) {
+function addToHistory(src){
   histArr.unshift(src); if(histArr.length>5) histArr=histArr.slice(0,5);
   const g=document.getElementById('historyGrid'); g.innerHTML='';
-  histArr.forEach((s,i)=>{const d=document.createElement('div');d.className='history-item';d.innerHTML='<img src="'+s+'" alt="h'+i+'"><div class="img-overlay"></div>';g.appendChild(d);});
-  for(let i=histArr.length;i<5;i++){const d=document.createElement('div');d.className='history-item history-empty';g.appendChild(d);}
+  histArr.forEach((s,i)=>{
+    const d=document.createElement('div'); d.className='history-item';
+    d.innerHTML='<img src="'+s+'" alt="h'+i+'"><div class="img-overlay"></div>';
+    g.appendChild(d);
+  });
+  for(let i=histArr.length;i<5;i++){
+    const d=document.createElement('div');d.className='history-item history-empty';g.appendChild(d);
+  }
 }
 </script>
 </body>
