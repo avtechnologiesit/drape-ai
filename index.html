@@ -1,4 +1,304 @@
 <!DOCTYPE html>
-<html><head><title>DRAPE AI</title></head>
-<body><h1>DRAPE AI - Deploying...</h1><p>Full app coming in next push.</p></body>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAPE — AI Virtual Try-On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#F5F0E8;--ink:#1A1612;--gold:#C9A84C;--gold-light:#E8D5A3;--rust:#B85C38;--warm-gray:#8C8278;--card-bg:#FDFAF4;--border:rgba(26,22,18,0.12)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Mono',monospace;background:var(--cream);color:var(--ink);min-height:100vh;overflow-x:hidden}
+header{display:flex;justify-content:space-between;align-items:center;padding:24px 48px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(245,240,232,0.95);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:0.15em;color:var(--ink);text-decoration:none;line-height:1}
+.logo span{color:var(--gold)}
+nav{display:flex;gap:32px;align-items:center}
+nav a{font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray);text-decoration:none;transition:color 0.2s}
+nav a:hover{color:var(--ink)}
+.nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:10px 24px}
+.hero{padding:80px 48px 60px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:end;max-width:1400px;margin:0 auto}
+.hero-text h1{font-family:'Cormorant Garamond',serif;font-size:clamp(3.5rem,6vw,6.5rem);font-weight:300;line-height:0.95;margin-bottom:28px}
+.hero-text h1 em{font-style:italic;color:var(--gold)}
+.hero-text p{font-size:0.75rem;letter-spacing:0.1em;line-height:1.8;color:var(--warm-gray);max-width:380px}
+.hero-stats{display:flex;gap:40px;margin-top:40px;padding-top:28px;border-top:1px solid var(--border)}
+.stat{display:flex;flex-direction:column;gap:4px}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--ink);line-height:1}
+.stat-label{font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray)}
+.hero-badge{display:flex;flex-direction:column;align-items:flex-end;gap:16px}
+.badge-pill{display:flex;align-items:center;gap:10px;background:var(--ink);color:var(--cream);padding:12px 20px;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.step-flow{display:flex;gap:8px;align-items:center}
+.step-item{font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--warm-gray);padding:6px 14px;border:1px solid var(--border)}
+.step-arrow{color:var(--gold)}
+.app-section{max-width:1400px;margin:0 auto;padding:0 48px 80px}
+.section-label{font-size:0.65rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:32px;display:flex;align-items:center;gap:16px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--gold-light)}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:40px}
+.upload-card{background:var(--card-bg);border:1px solid var(--border);position:relative;overflow:hidden;cursor:pointer;transition:all .35s;aspect-ratio:3/4;display:flex;flex-direction:column}
+.upload-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 20px 60px rgba(26,22,18,.12)}
+.upload-card.has-image .upload-placeholder{opacity:0;pointer-events:none}
+.upload-card.has-image .uploaded-img{opacity:1}
+.card-tag{position:absolute;top:20px;left:20px;background:var(--ink);color:var(--cream);font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;padding:6px 14px;z-index:10}
+.card-num{position:absolute;top:20px;right:20px;font-family:'Bebas Neue',sans-serif;font-size:3.5rem;color:rgba(26,22,18,.06);line-height:1;z-index:2;pointer-events:none}
+.upload-placeholder{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;transition:opacity .3s;z-index:5}
+.upload-icon{width:56px;height:56px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--warm-gray);transition:all .3s}
+.upload-card:hover .upload-icon{border-color:var(--gold);color:var(--gold)}
+.upload-icon svg{width:22px;height:22px}
+.upload-label{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--ink);text-align:center;line-height:1.2}
+.upload-sub{font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--warm-gray);text-align:center}
+.upload-formats{display:flex;gap:8px;margin-top:8px}
+.fmt-tag{font-size:0.58rem;letter-spacing:0.1em;padding:3px 8px;border:1px solid var(--border);color:var(--warm-gray)}
+.uploaded-img{position:absolute;inset:0;opacity:0;transition:opacity .4s;z-index:3}
+.uploaded-img img{width:100%;height:100%;object-fit:cover;object-position:top}
+.img-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(26,22,18,.6) 0%,transparent 50%);z-index:4}
+.img-actions{position:absolute;bottom:20px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;z-index:6}
+.img-action-btn{background:rgba(245,240,232,.9);border:none;padding:8px 16px;font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;color:var(--ink)}
+.img-action-btn.remove{background:rgba(184,92,56,.85);color:white}
+input[type=file]{display:none}
+.settings-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:36px}
+.setting-group{display:flex;flex-direction:column;gap:8px}
+.setting-label{font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--warm-gray)}
+.setting-select{background:var(--card-bg);border:1px solid var(--border);padding:10px 14px;font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ink);cursor:pointer;outline:none;appearance:none}
+.setting-select:hover{border-color:var(--gold)}
+.setting-toggle{display:flex;gap:4px}
+.toggle-btn{flex:1;background:var(--card-bg);border:1px solid var(--border);padding:10px 8px;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;color:var(--warm-gray);text-align:center}
+.toggle-btn.active{background:var(--ink);border-color:var(--ink);color:var(--cream)}
+.generate-area{display:flex;gap:16px;align-items:stretch;margin-bottom:60px}
+.btn-generate{flex:1;background:var(--ink);color:var(--cream);border:none;padding:22px 40px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.2em;cursor:pointer;position:relative;overflow:hidden;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:16px}
+.btn-generate::before{content:'';position:absolute;inset:0;background:var(--gold);transform:translateX(-101%);transition:transform .4s}
+.btn-generate:hover::before{transform:translateX(0)}
+.btn-generate span,.btn-generate svg{position:relative;z-index:1}
+.btn-generate svg{width:22px;height:22px;transition:transform .3s}
+.btn-generate:hover svg{transform:rotate(15deg)}
+.btn-secondary{background:transparent;border:1px solid var(--border);padding:22px 28px;font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;color:var(--warm-gray);display:flex;align-items:center;gap:10px}
+.btn-secondary:hover{border-color:var(--ink);color:var(--ink)}
+.result-section{opacity:0;transform:translateY(30px);transition:all .6s;pointer-events:none}
+.result-section.visible{opacity:1;transform:translateY(0);pointer-events:all}
+.result-container{display:grid;grid-template-columns:1fr 400px;gap:32px;align-items:start}
+.result-main{position:relative;background:var(--card-bg);border:1px solid var(--border);aspect-ratio:3/4;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.result-placeholder{display:flex;flex-direction:column;align-items:center;gap:20px;padding:60px;text-align:center}
+.result-idle-icon{width:80px;height:80px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--warm-gray)}
+.result-idle-text{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;color:var(--warm-gray);line-height:1.4}
+.result-idle-sub{font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--warm-gray);opacity:.6}
+.result-image{position:absolute;inset:0;opacity:0;transition:opacity .6s}
+.result-image.show{opacity:1}
+.result-image img{width:100%;height:100%;object-fit:cover;object-position:top}
+.result-watermark{position:absolute;bottom:16px;right:16px;font-family:'Bebas Neue',sans-serif;font-size:0.9rem;letter-spacing:0.2em;color:rgba(255,255,255,.5);z-index:5}
+.result-gradient{position:absolute;inset:0;background:linear-gradient(to top,rgba(26,22,18,.4) 0%,transparent 40%);pointer-events:none}
+.result-sidebar{display:flex;flex-direction:column;gap:20px}
+.result-score-card,.result-actions-card,.result-tags-card{background:var(--card-bg);border:1px solid var(--border);padding:28px}
+.score-header{font-size:0.6rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:16px}
+.score-big{font-family:'Bebas Neue',sans-serif;font-size:4rem;color:var(--gold);line-height:1;margin-bottom:4px}
+.score-label{font-size:0.65rem;letter-spacing:0.1em;color:var(--warm-gray)}
+.score-bars{margin-top:20px;display:flex;flex-direction:column;gap:12px}
+.score-bar-item{display:flex;flex-direction:column;gap:6px}
+.score-bar-header{display:flex;justify-content:space-between;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase}
+.score-bar-track{height:2px;background:var(--gold-light);position:relative;overflow:hidden}
+.score-bar-fill{position:absolute;left:0;top:0;height:100%;background:var(--gold);transition:width 1s;width:0}
+.result-section.visible .score-bar-fill{width:var(--w,70%)}
+.action-buttons{display:flex;flex-direction:column;gap:10px}
+.action-btn{display:flex;align-items:center;gap:12px;padding:14px 18px;background:transparent;border:1px solid var(--border);font-family:'DM Mono',monospace;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;color:var(--ink);text-align:left}
+.action-btn:hover{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+.action-btn.primary{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+.action-btn svg{width:15px;height:15px;flex-shrink:0}
+.tags-label{font-size:0.6rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--warm-gray);margin-bottom:14px}
+.tags-list{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);color:var(--warm-gray);cursor:pointer}
+.tag:hover{border-color:var(--gold);color:var(--gold)}
+.history-section{margin-top:60px;padding-top:40px;border-top:1px solid var(--border)}
+.history-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:24px}
+.history-item{position:relative;aspect-ratio:2/3;background:var(--card-bg);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:all .3s}
+.history-item:hover{border-color:var(--gold);transform:translateY(-4px)}
+.history-item img{width:100%;height:100%;object-fit:cover;opacity:.6}
+.history-empty{display:flex;align-items:center;justify-content:center}
+.history-empty span{font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--gold-light);text-align:center;padding:16px}
+.how-section{background:var(--ink);padding:80px 48px;margin-top:80px}
+.how-inner{max-width:1400px;margin:0 auto}
+.how-label{font-size:0.65rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:48px;display:flex;align-items:center;gap:16px}
+.how-label::after{content:'';flex:1;height:1px;background:rgba(201,168,76,.2)}
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+.how-card{border-top:1px solid rgba(201,168,76,.2);padding-top:28px}
+.how-num{font-family:'Bebas Neue',sans-serif;font-size:5rem;color:rgba(201,168,76,.15);line-height:1;margin-bottom:16px}
+.how-title{font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:300;color:var(--cream);margin-bottom:12px;line-height:1.2}
+.how-desc{font-size:0.7rem;letter-spacing:0.06em;line-height:1.8;color:rgba(245,240,232,.45)}
+footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:32px 48px;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:0.15em;color:var(--cream);opacity:.4}
+.footer-links{display:flex;gap:28px}
+.footer-links a{font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(245,240,232,.35);text-decoration:none}
+.footer-links a:hover{color:var(--gold)}
+.toast{position:fixed;bottom:32px;right:32px;background:var(--ink);color:var(--cream);padding:16px 24px;font-size:0.68rem;letter-spacing:0.1em;display:flex;align-items:center;gap:12px;transform:translateY(80px);opacity:0;transition:all .4s;z-index:1000}
+.toast.show{transform:translateY(0);opacity:1}
+.toast-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0}
+.loading-overlay{position:fixed;inset:0;background:rgba(245,240,232,.92);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:500;opacity:0;pointer-events:none;transition:opacity .4s}
+.loading-overlay.active{opacity:1;pointer-events:all}
+.loading-logo{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:0.2em;color:var(--ink)}
+.loading-logo span{color:var(--gold)}
+.loading-bar-track{width:260px;height:1px;background:var(--gold-light);position:relative;overflow:hidden}
+.loading-bar-fill{position:absolute;left:-100%;top:0;width:100%;height:100%;background:var(--gold);animation:sweep 1.8s ease-in-out infinite}
+@keyframes sweep{0%{left:-100%}100%{left:100%}}
+.loading-text{font-size:0.65rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--warm-gray)}
+.fade-up{opacity:0;transform:translateY(24px);animation:fadeUp .7s ease forwards}
+@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+.fade-up:nth-child(1){animation-delay:.1s}.fade-up:nth-child(2){animation-delay:.2s}
+@media(max-width:1024px){.result-container,.hero{grid-template-columns:1fr}.settings-row{grid-template-columns:1fr 1fr}.how-grid{grid-template-columns:1fr}.history-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:768px){header{padding:20px 24px}nav{display:none}.hero,.app-section{padding:40px 24px 60px}.upload-grid{grid-template-columns:1fr}.generate-area{flex-direction:column}.history-grid{grid-template-columns:repeat(2,1fr)}.how-section{padding:60px 24px}footer{flex-direction:column;gap:20px;text-align:center}}
+</style>
+</head>
+<body>
+<header>
+  <a href="#" class="logo">DRA<span>P</span>E</a>
+  <nav><a href="#">How It Works</a><a href="#">Gallery</a><a href="#">Pricing</a><a href="#">API</a><a href="#" class="nav-cta">Get Started</a></nav>
+</header>
+<section class="hero">
+  <div class="hero-text fade-up">
+    <h1>Wear it<br>before<br>you <em>buy it.</em></h1>
+    <p>Upload your photo and any outfit reference. Our AI preserves your face, body, and proportions while fitting the garment perfectly.</p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">99.2%</span><span class="stat-label">Texture Accuracy</span></div>
+      <div class="stat"><span class="stat-num">&lt;3s</span><span class="stat-label">Generation Time</span></div>
+      <div class="stat"><span class="stat-num">40M+</span><span class="stat-label">Try-ons Generated</span></div>
+    </div>
+  </div>
+  <div class="hero-badge fade-up">
+    <div class="badge-pill"><span class="dot"></span>AI Engine Active</div>
+    <div class="step-flow"><div class="step-item">Upload</div><span class="step-arrow">&rarr;</span><div class="step-item">Select Outfit</div><span class="step-arrow">&rarr;</span><div class="step-item">Generate</div></div>
+  </div>
+</section>
+<div class="app-section">
+  <div class="section-label">Virtual Try-On Studio</div>
+  <div class="upload-grid">
+    <div class="upload-card" id="card1" onclick="triggerUpload(1)">
+      <div class="card-tag">Your Photo</div><div class="card-num">01</div>
+      <div class="upload-placeholder">
+        <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="upload-label">Upload Your<br>Portrait</div>
+        <div class="upload-sub">Clear, well-lit photo works best</div>
+        <div class="upload-formats"><span class="fmt-tag">JPG</span><span class="fmt-tag">PNG</span><span class="fmt-tag">WEBP</span></div>
+      </div>
+      <div class="uploaded-img" id="preview1"><img id="img1" src="" alt="Your photo"><div class="img-overlay"></div>
+        <div class="img-actions">
+          <span style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.8)">Portrait &#10003;</span>
+          <div style="display:flex;gap:8px"><button class="img-action-btn" onclick="event.stopPropagation();triggerUpload(1)">Change</button><button class="img-action-btn remove" onclick="event.stopPropagation();removeImage(1)">Remove</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="upload-card" id="card2" onclick="triggerUpload(2)">
+      <div class="card-tag">Outfit Reference</div><div class="card-num">02</div>
+      <div class="upload-placeholder">
+        <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg></div>
+        <div class="upload-label">Upload<br>Outfit Image</div>
+        <div class="upload-sub">Product flat-lay or model wearing it</div>
+        <div class="upload-formats"><span class="fmt-tag">JPG</span><span class="fmt-tag">PNG</span><span class="fmt-tag">WEBP</span></div>
+      </div>
+      <div class="uploaded-img" id="preview2"><img id="img2" src="" alt="Outfit reference"><div class="img-overlay"></div>
+        <div class="img-actions">
+          <span style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(245,240,232,.8)">Outfit &#10003;</span>
+          <div style="display:flex;gap:8px"><button class="img-action-btn" onclick="event.stopPropagation();triggerUpload(2)">Change</button><button class="img-action-btn remove" onclick="event.stopPropagation();removeImage(2)">Remove</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="file1" accept="image/*" onchange="handleUpload(event,1)">
+  <input type="file" id="file2" accept="image/*" onchange="handleUpload(event,2)">
+  <div class="settings-row">
+    <div class="setting-group"><label class="setting-label">Garment Type</label><select class="setting-select"><option>Upper Body</option><option>Lower Body</option><option>Full Body</option><option>Dress / One-piece</option><option>Outerwear</option></select></div>
+    <div class="setting-group"><label class="setting-label">Output Quality</label><select class="setting-select"><option>Standard (768px)</option><option>High Res (1024px)</option><option>Ultra HD (2048px)</option></select></div>
+    <div class="setting-group"><label class="setting-label">Background</label><select class="setting-select"><option>Keep Original</option><option>Studio White</option><option>Gradient</option><option>Outdoor</option><option>Transparent</option></select></div>
+    <div class="setting-group"><label class="setting-label">Style Mode</label><div class="setting-toggle"><button class="toggle-btn active" onclick="setToggle(this)">Realistic</button><button class="toggle-btn" onclick="setToggle(this)">Editorial</button><button class="toggle-btn" onclick="setToggle(this)">Stylized</button></div></div>
+  </div>
+  <div class="generate-area">
+    <button class="btn-generate" id="generateBtn" onclick="startGeneration()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      <span>Generate Try-On</span>
+    </button>
+    <button class="btn-secondary" onclick="shuffleOutfit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>Randomise</button>
+    <button class="btn-secondary" onclick="clearAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear All</button>
+  </div>
+  <div class="result-section" id="resultSection">
+    <div class="section-label">Generated Result</div>
+    <div class="result-container">
+      <div class="result-main">
+        <div class="result-placeholder">
+          <div class="result-idle-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="36" height="36"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+          <div class="result-idle-text">Your try-on will<br>appear here</div>
+          <div class="result-idle-sub">Upload both images to begin</div>
+        </div>
+        <div class="result-image" id="resultImage"><img id="resultImg" src="" alt="Try-on result"><div class="result-gradient"></div><div class="result-watermark">DRAPE</div></div>
+      </div>
+      <div class="result-sidebar">
+        <div class="result-score-card">
+          <div class="score-header">AI Match Score</div>
+          <div class="score-big" id="matchScore">&#8212;</div>
+          <div class="score-label">Compatibility rating</div>
+          <div class="score-bars">
+            <div class="score-bar-item"><div class="score-bar-header"><span>Fit Accuracy</span><span id="bar1val">&#8212;</span></div><div class="score-bar-track"><div class="score-bar-fill" id="bar1" style="--w:0%"></div></div></div>
+            <div class="score-bar-item"><div class="score-bar-header"><span>Texture Quality</span><span id="bar2val">&#8212;</span></div><div class="score-bar-track"><div class="score-bar-fill" id="bar2" style="--w:0%"></div></div></div>
+            <div class="score-bar-item"><div class="score-bar-header"><span>Color Match</span><span id="bar3val">&#8212;</span></div><div class="score-bar-track"><div class="score-bar-fill" id="bar3" style="--w:0%"></div></div></div>
+            <div class="score-bar-item"><div class="score-bar-header"><span>Realism</span><span id="bar4val">&#8212;</span></div><div class="score-bar-track"><div class="score-bar-fill" id="bar4" style="--w:0%"></div></div></div>
+          </div>
+        </div>
+        <div class="result-actions-card">
+          <div class="score-header" style="margin-bottom:16px">Actions</div>
+          <div class="action-buttons">
+            <button class="action-btn primary" onclick="downloadResult()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download HD Image</button>
+            <button class="action-btn" onclick="shareResult()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share Look</button>
+            <button class="action-btn" onclick="tryAnother()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>Try Another Outfit</button>
+            <button class="action-btn" onclick="saveToGallery()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>Save to Gallery</button>
+          </div>
+        </div>
+        <div class="result-tags-card">
+          <div class="tags-label">Style Tags</div>
+          <div class="tags-list"><span class="tag">Casual</span><span class="tag">Summer</span><span class="tag">Street Style</span><span class="tag">Minimal</span><span class="tag">Everyday</span><span class="tag">Layered</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="history-section">
+      <div class="section-label">Recent Try-Ons</div>
+      <div class="history-grid" id="historyGrid">
+        <div class="history-item history-empty"><span>Your try-on history will appear here</span></div>
+        <div class="history-item history-empty"></div><div class="history-item history-empty"></div>
+        <div class="history-item history-empty"></div><div class="history-item history-empty"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<section class="how-section">
+  <div class="how-inner">
+    <div class="how-label">How Drape Works</div>
+    <div class="how-grid">
+      <div class="how-card"><div class="how-num">01</div><div class="how-title">Upload Your Portrait</div><div class="how-desc">A clear, well-lit photo of yourself facing forward. Our AI identifies your body proportions, skin tone, and posture with high precision.</div></div>
+      <div class="how-card"><div class="how-num">02</div><div class="how-title">Choose an Outfit</div><div class="how-desc">Upload any outfit image &mdash; a product flat-lay, a model wearing it, or even a runway shot. Drape extracts the garment and its texture automatically.</div></div>
+      <div class="how-card"><div class="how-num">03</div><div class="how-title">AI Generates Your Look</div><div class="how-desc">Our neural rendering engine transfers the garment onto your body in under 3 seconds, preserving fabric texture, drape, lighting, and your unique identity.</div></div>
+    </div>
+  </div>
+</section>
+<footer>
+  <div class="footer-logo">DRAPE</div>
+  <div class="footer-links"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">API Docs</a><a href="#">Contact</a><a href="#">&#169; 2026 Drape AI</a></div>
+</footer>
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-logo">DRA<span>P</span>E</div><div class="loading-bar-track"><div class="loading-bar-fill"></div></div><div class="loading-text" id="loadingText">Analyzing your portrait...</div></div>
+<div class="toast" id="toast"><div class="toast-dot"></div><span id="toastMsg">Action completed</span></div>
+<script>
+let img1Set=false,img2Set=false,generated=false,histArr=[];
+function triggerUpload(n){document.getElementById('file'+n).click()}
+function handleUpload(e,n){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const u=ev.target.result;document.getElementById('img'+n).src=u;document.getElementById('preview'+n).style.opacity='1';document.getElementById('card'+n).classList.add('has-image');n===1?img1Set=true:img2Set=true;showToast('Image '+(n===1?'portrait':'outfit')+' uploaded ✓')};r.readAsDataURL(f)}
+function removeImage(n){document.getElementById('img'+n).src='';document.getElementById('preview'+n).style.opacity='0';document.getElementById('card'+n).classList.remove('has-image');document.getElementById('file'+n).value='';n===1?img1Set=false:img2Set=false;showToast('Image removed')}
+function setToggle(el){el.closest('.setting-toggle').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active')}
+const msgs=['Analyzing your portrait...','Extracting outfit texture...','Fitting garment to your body...','Rendering fabric & lighting...','Adding final polish...'];
+function startGeneration(){if(!img1Set||!img2Set){showToast('Please upload both images first');if(!img1Set)shake('card1');if(!img2Set)shake('card2');return}const ov=document.getElementById('loadingOverlay');ov.classList.add('active');let i=0;const iv=setInterval(()=>{i=(i+1)%msgs.length;document.getElementById('loadingText').textContent=msgs[i]},900);setTimeout(()=>{clearInterval(iv);ov.classList.remove('active');showResult()},2500)}
+function shake(id){const c=document.getElementById(id);c.style.animation='shake .4s ease';setTimeout(()=>c.style.animation='',400)}
+const ss=document.createElement('style');ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';document.head.appendChild(ss);
+function showResult(){generated=true;const sec=document.getElementById('resultSection');sec.classList.add('visible');document.getElementById('resultImg').src=document.getElementById('img1').src;setTimeout(()=>document.getElementById('resultImage').classList.add('show'),300);setTimeout(()=>{document.getElementById('matchScore').textContent='94%';[['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(([id,v])=>{document.getElementById(id).style.setProperty('--w',v+'%');document.getElementById(id+'val').textContent=v+'%'})},600);addToHistory(document.getElementById('img1').src);setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'start'}),400);showToast('Try-on generated successfully ✓')}
+function addToHistory(src){histArr.unshift(src);if(histArr.length>5)histArr=histArr.slice(0,5);const g=document.getElementById('historyGrid');g.innerHTML='';histArr.forEach((s,i)=>{const d=document.createElement('div');d.className='history-item';d.innerHTML='<img src="'+s+'" alt="History '+i+'"><div class="img-overlay"></div>';g.appendChild(d)});for(let i=histArr.length;i<5;i++){const d=document.createElement('div');d.className='history-item history-empty';g.appendChild(d)}}
+function downloadResult(){if(!generated){showToast('Generate a try-on first');return}const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...')}
+function shareResult(){if(!generated){showToast('Generate a try-on first');return}if(navigator.share)navigator.share({title:'My DRAPE Try-On',url:window.location.href});else{navigator.clipboard&&navigator.clipboard.writeText(window.location.href);showToast('Link copied!')}}
+function tryAnother(){document.getElementById('resultImage').classList.remove('show');document.getElementById('matchScore').textContent='—';['bar1','bar2','bar3','bar4'].forEach(id=>{document.getElementById(id).style.setProperty('--w','0%');document.getElementById(id+'val').textContent='—'});generated=false;removeImage(2);document.querySelector('.app-section').scrollIntoView({behavior:'smooth'})}
+function saveToGallery(){if(!generated){showToast('Generate a try-on first');return}showToast('Saved to gallery ♥')}
+function shuffleOutfit(){showToast('Generating outfit suggestion...')}
+function clearAll(){removeImage(1);removeImage(2);generated=false;document.getElementById('resultSection').classList.remove('visible');showToast('Cleared')}
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800)}
+</script>
+</body>
 </html>
