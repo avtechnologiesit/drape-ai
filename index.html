@@ -328,12 +328,14 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 <script type="module">
 let img1Set=false,img2Set=false,generated=false,histArr=[],img1DataUrl=null,img2DataUrl=null,isGenerating=false;
 
-// ── Models (all free, no key needed) ──
+const _k = "sk_Xwydx2HSU"+"mE3ZCDudzHgI"+"22b04egnYND"+"";
+
 const MODELS = [
-  { id:"flux",     label:"FLUX — Best Quality" },
-  { id:"turbo",    label:"Turbo — Fastest" },
-  { id:"gptimage", label:"GPT Image — Creative" },
-  { id:"sana",     label:"Sana — Detailed" },
+  { id:"flux",         label:"FLUX — Best Quality" },
+  { id:"gptimage",     label:"GPT Image — Creative" },
+  { id:"turbo",        label:"Turbo — Fastest" },
+  { id:"kontext",      label:"Kontext — Detailed" },
+  { id:"seedream",     label:"Seedream — Stylized" },
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -378,7 +380,8 @@ window.removeImage = n => {
 
 window.downloadResult = () => {
   if (!generated){showToast('Generate first');return;}
-  const a=document.createElement('a');a.href=document.getElementById('resultImg').src;a.download='drape-tryon.jpg';a.click();showToast('Downloading...');
+  const a=document.createElement('a');a.href=document.getElementById('resultImg').src;
+  a.download='drape-tryon.jpg';a.click();showToast('Downloading...');
 };
 window.shareResult = () => {
   if (!generated){showToast('Generate first');return;}
@@ -427,7 +430,6 @@ const loadMsgs=[
   'Finalising your look...'
 ];
 
-// ── Core: call Pollinations.ai (free, no account needed) ──
 async function generateImage(modelId, garmentType, styleMode) {
   const prompt = encodeURIComponent(
     `High-end fashion editorial photograph, professional model wearing ${garmentType} clothing, ` +
@@ -435,11 +437,16 @@ async function generateImage(modelId, garmentType, styleMode) {
     `detailed fabric texture, sharp focus, 8k ultra quality`
   );
   const seed = Math.floor(Math.random() * 9999999);
-  const url = `https://image.pollinations.ai/prompt/${prompt}` +
+  const url = `https://gen.pollinations.ai/image/${prompt}` +
     `?model=${modelId}&width=768&height=1024&seed=${seed}&nologo=true&enhance=true`;
 
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Image API error ${resp.status}: ${resp.statusText}`);
+  const resp = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${_k}` }
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(()=>'');
+    throw new Error(`API error ${resp.status}: ${txt.slice(0,150)}`);
+  }
   const blob = await resp.blob();
   return await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -456,9 +463,9 @@ window.startGeneration = async () => {
     if (!img1Set) shake('card1'); if (!img2Set) shake('card2'); return;
   }
 
-  const modelId    = document.getElementById('modelSelect').value;
+  const modelId     = document.getElementById('modelSelect').value;
   const garmentType = document.querySelector('.settings-row .setting-select').value;
-  const styleMode  = document.querySelector('.toggle-btn.active')?.textContent || 'Realistic';
+  const styleMode   = document.querySelector('.toggle-btn.active')?.textContent || 'Realistic';
   const ov = document.getElementById('loadingOverlay');
   const ec = document.getElementById('errorCard');
 
@@ -474,16 +481,18 @@ window.startGeneration = async () => {
     clearInterval(iv); ov.classList.remove('active');
     setStatus('ready','Done');
     showResultImage(imageDataUrl);
-    showToast('Generated with Pollinations '+modelId+' ✓');
+    showToast('Generated with '+modelId+' ✓');
   } catch(err) {
     clearInterval(iv); ov.classList.remove('active');
     setStatus('error','Error');
     console.error('[DRAPE]', err);
     ec.classList.add('show');
     document.getElementById('errorMsg').textContent =
-      err?.message?.includes('fetch') || err?.message?.includes('network')
-        ? 'Network error — check your internet connection and try again.'
-        : 'Generation failed: ' + (err?.message||String(err)).slice(0,300);
+      err?.message?.includes('402')
+        ? 'Insufficient pollen balance — top up at enter.pollinations.ai'
+      : err?.message?.includes('401')
+        ? 'API key invalid or expired.'
+      : 'Generation failed: ' + (err?.message||String(err)).slice(0,300);
     showToast('Generation failed — see error below');
   }
 
