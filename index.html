@@ -60,7 +60,7 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 /* THE KEY: real file input covers entire card, fully transparent */
 .ucard-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:6;}
 /* Hide file input when image is shown (actions buttons need to be above) */
-.ucard.has-img .ucard-input{z-index:1;}
+.ucard.has-img .ucard-input{display:none;}
 .ucard.has-img .ucard-img{display:block;}
 .ucard.has-img .ucard-placeholder{opacity:0;}
 
@@ -343,6 +343,8 @@ function setupCard(n) {
       var dataUrl = e.target.result;
       imgEl.src = dataUrl;
       previewEl.style.display = 'block';
+      previewEl.style.zIndex = '10';
+      fileEl.style.display = 'none';
       cardEl.classList.add('has-img');
       if (n===1) { img1Data=dataUrl; img1Set=true; }
       else       { img2Data=dataUrl; img2Set=true; }
@@ -363,6 +365,8 @@ function setupCard(n) {
     e.stopPropagation();
     imgEl.src = '';
     previewEl.style.display = 'none';
+    previewEl.style.zIndex = '';
+    fileEl.style.display = '';
     cardEl.classList.remove('has-img');
     fileEl.value = '';
     if (n===1) { img1Data=null; img1Set=false; }
