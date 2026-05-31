@@ -213,7 +213,7 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
   <div class="section-label">Virtual Try-On Studio</div>
   <div class="upload-grid">
     <label class="upload-card has-file-input" id="card1" style="cursor:pointer;">
-      <input type="file" id="file1" accept="image/*" onchange="handleUpload(event,1)" style="display:none;">
+      <input type="file" id="file1" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;">
       <div class="card-tag">Your Photo</div><div class="card-num">01</div>
       <div class="upload-placeholder">
         <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
@@ -232,7 +232,7 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
       </div>
     </label>
     <label class="upload-card has-file-input" id="card2" style="cursor:pointer;">
-      <input type="file" id="file2" accept="image/*" onchange="handleUpload(event,2)" style="display:none;">
+      <input type="file" id="file2" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;">
       <div class="card-tag">Outfit Reference</div><div class="card-num">02</div>
       <div class="upload-placeholder">
         <div class="upload-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg></div>
@@ -331,413 +331,301 @@ footer{background:var(--ink);border-top:1px solid rgba(201,168,76,.15);padding:3
 <div class="loading-overlay" id="loadingOverlay"><div class="loading-logo">DRA<span>P</span>E</div><div class="loading-bar-track"><div class="loading-bar-fill"></div></div><div class="loading-text" id="loadingText">Analyzing your portrait...</div></div>
 <div class="toast" id="toast"><div class="toast-dot"></div><span id="toastMsg">Action completed</span></div>
 <script>
-/* DRAPE AI - Virtual Try-On */
 (function() {
 
-var _ubBase = 'https://universalbench-mcp.penantiaglobal.workers.dev/u/';
-var _ubKey  = ["ubk_e682f8f11b59df48","44cfff097e7144e47143","c575dca71b1988b5db43","db30580e"].join("");
-var _ub     = _ubBase + _ubKey;
-var _ok     = ["sk-proj-rNWfpEBOWjo_","tFdMPPGn8MHmzhfveCQd","obVTZn_yExuwy8a31S57","uLIL6epcUOQvKj6R7QVm","2QT3BlbkFJIoAOXzByw9","qAIkHAiY4M0jrcJR1aXW","Ez2foupKuq65P62rQKLI","j2mn1kzKWl-aCmMntZ6x","q-sA"].join("");
-var _ant    = ["sk-ant-api03-wkYgkc0","jtWxQFaFv89rfW-JIZLq","JDwELfD09QtiQGkdxeqw","v7DkVzQXVwv_T5-a8z0h","5zvXVHCZ9e1iXdFrk0g-","P5wHYgAA"].join("");
+var _ub = 'https://universalbench-mcp.penantiaglobal.workers.dev/u/' + ["ubk_e682f8f11b59df48","44cfff097e7144e47143","c575dca71b1988b5db43","db30580e"].join("");
+var _ok = ["sk-proj-rNWfpEBOWjo_","tFdMPPGn8MHmzhfveCQd","obVTZn_yExuwy8a31S57","uLIL6epcUOQvKj6R7QVm","2QT3BlbkFJIoAOXzByw9","qAIkHAiY4M0jrcJR1aXW","Ez2foupKuq65P62rQKLI","j2mn1kzKWl-aCmMntZ6x","q-sA"].join("");
+var _ant = ["sk-ant-api03-wkYgkc0","jtWxQFaFv89rfW-JIZLq","JDwELfD09QtiQGkdxeqw","v7DkVzQXVwv_T5-a8z0h","5zvXVHCZ9e1iXdFrk0g-","P5wHYgAA"].join("");
 
 var state = {
-  img1Set: false, img2Set: false,
-  img1Data: null, img2Data: null,
-  generated: false, generating: false,
-  history: []
+  img1Set:false, img2Set:false,
+  img1Data:null, img2Data:null,
+  generated:false, generating:false,
+  history:[]
 };
 
 var MODELS = [
-  { id: 'gpt-image-1',          label: 'GPT Image 1 - Best Quality' },
-  { id: 'gpt-image-1-mini',     label: 'GPT Image Mini - Fast' },
-  { id: 'gpt-image-2',          label: 'GPT Image 2 - Latest' },
-  { id: 'chatgpt-image-latest', label: 'ChatGPT Image - Creative' }
+  {id:'gpt-image-1',         label:'GPT Image 1 - Best Quality'},
+  {id:'gpt-image-1-mini',    label:'GPT Image Mini - Fast'},
+  {id:'gpt-image-2',         label:'GPT Image 2 - Latest'},
+  {id:'chatgpt-image-latest',label:'ChatGPT Image - Creative'}
 ];
 
-/* ---- Helpers ---- */
 function $(id) { return document.getElementById(id); }
 
 function showToast(msg) {
-  var t = $('toast');
-  if (!t) return;
+  var t=$('toast'); if(!t) return;
   $('toastMsg').textContent = msg;
   t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 2800);
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
 }
 
 function setStatus(s, txt) {
-  var d = $('modelDot'), x = $('modelStatusText');
-  if (!d) return;
-  d.className = 'model-dot' + (s === 'loading' ? ' loading' : s === 'error' ? ' error' : '');
+  var d=$('modelDot'), x=$('modelStatusText'); if(!d) return;
+  d.className = 'model-dot'+(s==='loading'?' loading':s==='error'?' error':'');
   x.textContent = txt;
 }
 
 function shake(id) {
-  var c = $(id);
-  if (!c) return;
+  var c=$(id); if(!c) return;
   c.style.animation = 'shake 0.4s ease';
-  setTimeout(function() { c.style.animation = ''; }, 400);
+  setTimeout(function(){ c.style.animation=''; }, 400);
 }
 
-/* ---- Upload ---- */
-function triggerUpload(n) {
-  var el = $('file' + n);
-  if (el) el.click();
-}
-
-function handleUpload(e, n) {
-  var f = e.target.files[0];
-  if (!f) return;
+/* ── Upload ── */
+function doUpload(file, n) {
+  if (!file) return;
   var reader = new FileReader();
   reader.onload = function(ev) {
     var u = ev.target.result;
-    // Set image src
-    var imgEl = $('img' + n);
+    var imgEl = $('img'+n);
+    var previewEl = $('preview'+n);
+    var cardEl = $('card'+n);
     if (imgEl) imgEl.src = u;
-    // Show preview - force both class and inline style
-    var previewEl = $('preview' + n);
     if (previewEl) {
-      previewEl.style.opacity = '1';
-      previewEl.style.zIndex = '3';
+      previewEl.style.cssText = 'opacity:1;position:absolute;inset:0;z-index:4;';
     }
-    // Add has-image class to card
-    var cardEl = $('card' + n);
     if (cardEl) cardEl.classList.add('has-image');
-    // Store data
-    if (n === 1) { state.img1Set = true; state.img1Data = u; }
-    else         { state.img2Set = true; state.img2Data = u; }
-    showToast(n === 1 ? 'Portrait uploaded' : 'Outfit uploaded');
+    if (n===1) { state.img1Set=true; state.img1Data=u; }
+    else       { state.img2Set=true; state.img2Data=u; }
+    showToast(n===1 ? 'Portrait uploaded!' : 'Outfit uploaded!');
   };
-  reader.onerror = function() { showToast('Failed to read image. Try again.'); };
-  reader.readAsDataURL(f);
+  reader.onerror = function() { showToast('Could not read image. Try another file.'); };
+  reader.readAsDataURL(file);
 }
 
 function removeImage(n) {
-  var imgEl = $('img' + n);
-  var previewEl = $('preview' + n);
-  var cardEl = $('card' + n);
-  var fileEl = $('file' + n);
-  if (imgEl) imgEl.src = '';
-  if (previewEl) { previewEl.style.opacity = '0'; previewEl.style.zIndex = ''; }
-  if (cardEl) cardEl.classList.remove('has-image');
-  if (fileEl) fileEl.value = '';
-  if (n === 1) { state.img1Set = false; state.img1Data = null; }
-  else         { state.img2Set = false; state.img2Data = null; }
+  var imgEl=$('img'+n), preEl=$('preview'+n), cardEl=$('card'+n), fileEl=$('file'+n);
+  if (imgEl)   imgEl.src = '';
+  if (preEl)   preEl.style.cssText = 'opacity:0;';
+  if (cardEl)  cardEl.classList.remove('has-image');
+  if (fileEl)  fileEl.value = '';
+  if (n===1) { state.img1Set=false; state.img1Data=null; }
+  else       { state.img2Set=false; state.img2Data=null; }
   showToast('Image removed');
 }
 
-/* ---- Settings ---- */
 function setToggle(el) {
   var btns = el.closest('.setting-toggle').querySelectorAll('.toggle-btn');
   btns.forEach(function(b) { b.classList.remove('active'); });
   el.classList.add('active');
 }
 
-/* ---- Actions ---- */
 function downloadResult() {
   if (!state.generated) { showToast('Generate first'); return; }
-  var a = document.createElement('a');
-  a.href = $('resultImg').src;
-  a.download = 'drape-tryon.jpg';
-  a.click();
+  var a=document.createElement('a');
+  a.href=$('resultImg').src; a.download='drape-tryon.jpg'; a.click();
   showToast('Downloading...');
 }
-
 function shareResult() {
   if (!state.generated) { showToast('Generate first'); return; }
-  if (navigator.share) {
-    navigator.share({ title: 'My DRAPE Try-On', url: window.location.href });
-  } else {
-    if (navigator.clipboard) navigator.clipboard.writeText(window.location.href);
-    showToast('Link copied!');
-  }
+  if (navigator.share) navigator.share({title:'My DRAPE Try-On',url:window.location.href});
+  else { if(navigator.clipboard) navigator.clipboard.writeText(window.location.href); showToast('Link copied!'); }
 }
-
 function tryAnother() {
   $('resultImage').classList.remove('show');
-  $('matchScore').textContent = '--';
-  ['bar1','bar2','bar3','bar4'].forEach(function(id) {
-    $(id).style.setProperty('--w', '0%');
-    $(id + 'val').textContent = '--';
+  $('matchScore').textContent='--';
+  ['bar1','bar2','bar3','bar4'].forEach(function(id){
+    $(id).style.setProperty('--w','0%'); $(id+'val').textContent='--';
   });
-  state.generated = false;
-  removeImage(2);
-  var sec = document.querySelector('.app-section');
-  if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+  state.generated=false; removeImage(2);
+  var s=document.querySelector('.app-section'); if(s) s.scrollIntoView({behavior:'smooth'});
 }
-
-function saveToGallery() {
-  if (!state.generated) { showToast('Generate first'); return; }
-  showToast('Saved to gallery');
-}
-
-function shuffleOutfit() { showToast('Generating outfit suggestion...'); }
-
-function clearAll() {
-  removeImage(1); removeImage(2);
-  state.generated = false;
+function saveToGallery(){ if(!state.generated){showToast('Generate first');return;} showToast('Saved to gallery'); }
+function shuffleOutfit(){ showToast('Generating outfit suggestion...'); }
+function clearAll(){
+  removeImage(1); removeImage(2); state.generated=false;
   $('resultSection').classList.remove('visible');
-  var ec = $('errorCard');
-  if (ec) ec.classList.remove('show');
+  var ec=$('errorCard'); if(ec) ec.classList.remove('show');
   showToast('Cleared');
 }
 
-/* ---- History ---- */
 function addToHistory(src) {
   state.history.unshift(src);
-  if (state.history.length > 5) state.history = state.history.slice(0, 5);
-  var g = $('historyGrid');
-  if (!g) return;
-  g.innerHTML = '';
-  state.history.forEach(function(s, i) {
-    var d = document.createElement('div');
-    d.className = 'history-item';
-    d.innerHTML = '<img src="' + s + '" alt="h' + i + '"><div class="img-overlay"></div>';
+  if(state.history.length>5) state.history=state.history.slice(0,5);
+  var g=$('historyGrid'); if(!g) return;
+  g.innerHTML='';
+  state.history.forEach(function(s,i){
+    var d=document.createElement('div'); d.className='history-item';
+    d.innerHTML='<img src="'+s+'" alt="h'+i+'"><div class="img-overlay"></div>';
     g.appendChild(d);
   });
-  for (var i = state.history.length; i < 5; i++) {
-    var d = document.createElement('div');
-    d.className = 'history-item history-empty';
-    g.appendChild(d);
+  for(var i=state.history.length;i<5;i++){
+    var d=document.createElement('div'); d.className='history-item history-empty'; g.appendChild(d);
   }
 }
 
-/* ---- Show result ---- */
 function showResultImage(url) {
-  state.generated = true;
-  var sec = $('resultSection');
-  sec.classList.add('visible');
-  $('resultImg').src = url;
-  setTimeout(function() { $('resultImage').classList.add('show'); }, 300);
-  setTimeout(function() {
-    $('matchScore').textContent = 'AI';
-    [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(function(a) {
-      $(a[0]).style.setProperty('--w', a[1] + '%');
-      $(a[0] + 'val').textContent = a[1] + '%';
+  state.generated=true;
+  var sec=$('resultSection'); sec.classList.add('visible');
+  $('resultImg').src=url;
+  setTimeout(function(){ $('resultImage').classList.add('show'); },300);
+  setTimeout(function(){
+    $('matchScore').textContent='AI';
+    [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(function(a){
+      $(a[0]).style.setProperty('--w',a[1]+'%'); $(a[0]+'val').textContent=a[1]+'%';
     });
-  }, 600);
+  },600);
   addToHistory(url);
-  setTimeout(function() { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 400);
+  setTimeout(function(){ sec.scrollIntoView({behavior:'smooth',block:'start'}); },400);
 }
 
-/* ---- AI Assistant ---- */
+/* ── AI Stylist ── */
 function injectAssistant() {
-  var genArea = document.querySelector('.generate-area');
-  if (!genArea || $('assistantSection')) return;
-  var div = document.createElement('div');
-  div.id = 'assistantSection';
-  div.style.cssText = 'margin:0 0 32px;background:var(--card-bg);border:1px solid var(--border);padding:24px 28px;';
-  div.innerHTML = [
-    '<div style="font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">',
-    'AI Fashion Stylist',
-    '<span style="font-size:.55rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.28);color:var(--gold);padding:2px 8px;">CLAUDE VISION</span>',
-    '<span id="visionBadge" style="display:none;font-size:.55rem;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);color:#16a34a;padding:2px 8px;">SEES YOUR IMAGES</span>',
-    '</div>',
-    '<div style="display:flex;gap:10px;align-items:stretch;">',
-    '<input id="aiQuestion" type="text" placeholder="Ask about fit, colour, styling tips..."',
-    ' style="flex:1;background:var(--cream);border:1px solid var(--border);padding:10px 14px;font-family:DM Mono,monospace;font-size:.72rem;color:var(--ink);outline:none;"',
-    ' onkeydown="if(event.key==='Enter')window._drape.askAI()">',
-    '<button onclick="window._drape.askAI()" style="background:var(--ink);color:var(--cream);border:none;padding:10px 22px;font-family:Bebas Neue,sans-serif;font-size:1rem;letter-spacing:.12em;cursor:pointer;">Ask AI</button>',
-    '</div>',
-    '<div id="aiAnswer" style="display:none;margin-top:14px;font-size:.72rem;line-height:1.9;color:var(--ink);border-left:2px solid var(--gold);padding-left:14px;"></div>',
-    '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">',
-    '<button onclick="window._drape.quickAsk('Does this outfit suit my body type?')" style="font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--warm-gray);">Body fit?</button>',
-    '<button onclick="window._drape.quickAsk('What shoes and accessories go with this?')" style="font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--warm-gray);">Shoes?</button>',
-    '<button onclick="window._drape.quickAsk('What occasion is this outfit for?')" style="font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--warm-gray);">Occasion?</button>',
-    '<button onclick="window._drape.quickAsk('What colours complement this outfit?')" style="font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--warm-gray);">Colours?</button>',
-    '</div>'
-  ].join('');
-  genArea.after(div);
+  var ga=document.querySelector('.generate-area');
+  if(!ga||$('assistantSection')) return;
+  var div=document.createElement('div');
+  div.id='assistantSection';
+  div.style.cssText='margin:0 0 32px;background:var(--card-bg);border:1px solid var(--border);padding:24px 28px;';
+  div.innerHTML='<div style="font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;">AI Fashion Stylist <span style="font-size:.55rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.28);color:var(--gold);padding:2px 8px;margin-left:6px;">CLAUDE VISION</span></div>'
+    +'<div style="display:flex;gap:10px;">'
+    +'<input id="aiQuestion" type="text" placeholder="Ask about fit, colour, styling tips..." style="flex:1;background:var(--cream);border:1px solid var(--border);padding:10px 14px;font-family:DM Mono,monospace;font-size:.72rem;color:var(--ink);outline:none;">'
+    +'<button id="aiBtn" style="background:var(--ink);color:var(--cream);border:none;padding:10px 22px;font-family:Bebas Neue,sans-serif;font-size:1rem;letter-spacing:.12em;cursor:pointer;">Ask AI</button>'
+    +'</div>'
+    +'<div id="aiAnswer" style="display:none;margin-top:14px;font-size:.72rem;line-height:1.9;color:var(--ink);border-left:2px solid var(--gold);padding-left:14px;"></div>'
+    +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;" id="quickBtns"></div>';
+  ga.after(div);
+
+  // Wire events properly via addEventListener
+  $('aiBtn').addEventListener('click', askAI);
+  $('aiQuestion').addEventListener('keydown', function(e){ if(e.key==='Enter') askAI(); });
+
+  var quickQs=[
+    ['Body fit?','Does this outfit suit my body type?'],
+    ['Shoes?','What shoes and accessories go with this?'],
+    ['Occasion?','What occasion is this outfit for?'],
+    ['Colours?','What colours complement this outfit?']
+  ];
+  var qb=$('quickBtns');
+  quickQs.forEach(function(q){
+    var btn=document.createElement('button');
+    btn.textContent=q[0];
+    btn.style.cssText='font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--warm-gray);';
+    btn.addEventListener('click',function(){ $('aiQuestion').value=q[1]; askAI(); });
+    qb.appendChild(btn);
+  });
 }
 
 async function askAI() {
-  var q = $('aiQuestion').value.trim();
-  if (!q) { showToast('Type a question first'); return; }
-  var answerEl = $('aiAnswer');
-  answerEl.style.display = 'block';
-  answerEl.textContent = 'Analysing...';
-  var garmentType = document.querySelector('.settings-row .setting-select') ? document.querySelector('.settings-row .setting-select').value : 'outfit';
-  var ab = document.querySelector('.toggle-btn.active');
-  var styleMode = ab ? ab.textContent : 'Realistic';
-  if (state.img1Data || state.img2Data) {
-    $('visionBadge').style.display = 'inline-flex';
-  }
-  var msgContent = [];
-  if (state.img1Data) {
-    msgContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.img1Data.split(',')[1] } });
-    msgContent.push({ type: 'text', text: 'This is the person portrait.' });
-  }
-  if (state.img2Data) {
-    msgContent.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.img2Data.split(',')[1] } });
-    msgContent.push({ type: 'text', text: 'This is the reference outfit.' });
-  }
-  msgContent.push({ type: 'text', text: 'Garment: ' + garmentType + '. Style: ' + styleMode + '. Question: ' + q });
+  var q=$('aiQuestion').value.trim();
+  if(!q){ showToast('Type a question first'); return; }
+  var ans=$('aiAnswer'); ans.style.display='block'; ans.textContent='Analysing...';
+  var gt=document.querySelector('.settings-row .setting-select');
+  var garment=gt?gt.value:'outfit';
+  var ab=document.querySelector('.toggle-btn.active');
+  var style=ab?ab.textContent:'Realistic';
+  var mc=[];
+  if(state.img1Data){ mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:state.img1Data.split(',')[1]}});mc.push({type:'text',text:'Person portrait.'});}
+  if(state.img2Data){ mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:state.img2Data.split(',')[1]}});mc.push({type:'text',text:'Reference outfit.'});}
+  mc.push({type:'text',text:'Garment: '+garment+'. Style: '+style+'. Question: '+q});
   try {
-    var resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': _ant, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, system: 'You are DRAPE, an expert AI fashion stylist. Analyse the uploaded images carefully and give specific practical advice in 2-4 sentences.', messages: [{ role: 'user', content: msgContent }] })
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    var data = await resp.json();
-    answerEl.textContent = data.content[0].text;
-    showToast('Claude answered');
-  } catch(err) {
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,system:'You are DRAPE, an expert AI fashion stylist. Analyse images carefully. Give specific practical advice in 2-4 sentences.',messages:[{role:'user',content:mc}]})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var d=await r.json(); ans.textContent=d.content[0].text; showToast('Claude answered');
+  } catch(e) {
     try {
-      var resp2 = await fetch(_ub, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'ub_ai', arguments: { invoke_llm: 'Garment: ' + garmentType + '. Question: ' + q, invoke_llm_model: 'google/gemini-2.5-flash', invoke_llm_system: 'You are DRAPE, an expert AI fashion stylist. Give concise practical advice in 2-3 sentences.' } } })
-      });
-      var data2 = await resp2.json();
-      answerEl.textContent = data2.result.content[0].text;
-      showToast('AI answered');
-    } catch(e2) {
-      answerEl.textContent = 'Could not get AI response. Please try again.';
-    }
+      var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{invoke_llm:'Garment:'+garment+' Question:'+q,invoke_llm_model:'google/gemini-2.5-flash',invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise practical advice in 2-3 sentences.'}}})});
+      var d2=await r2.json(); ans.textContent=d2.result.content[0].text; showToast('AI answered');
+    } catch(e2) { ans.textContent='Could not get response. Try again.'; }
   }
 }
 
-function quickAsk(q) {
-  $('aiQuestion').value = q;
-  askAI();
-}
-
-/* ---- Image Generation ---- */
-var loadMsgs = ['Sending to OpenAI...', 'Analysing outfit...', 'Composing try-on...', 'Rendering fabric...', 'Finalising your look...'];
+/* ── Image Generation ── */
+var loadMsgs=['Sending to OpenAI...','Analysing outfit...','Composing try-on...','Rendering fabric...','Finalising look...'];
 
 async function startGeneration() {
-  if (state.generating) return;
-  if (!state.img1Set || !state.img2Set) {
-    showToast('Please upload both images first');
-    if (!state.img1Set) shake('card1');
-    if (!state.img2Set) shake('card2');
-    return;
+  if(state.generating) return;
+  if(!state.img1Set||!state.img2Set) {
+    showToast('Upload both images first');
+    if(!state.img1Set) shake('card1'); if(!state.img2Set) shake('card2'); return;
   }
-  var sel = $('modelSelect');
-  var modelId = sel ? sel.value : 'gpt-image-1';
-  var gtSel = document.querySelector('.settings-row .setting-select');
-  var garmentType = gtSel ? gtSel.value : 'Upper Body';
-  var ab = document.querySelector('.toggle-btn.active');
-  var styleMode = ab ? ab.textContent : 'Realistic';
-  var ov = $('loadingOverlay');
-  var ec = $('errorCard');
-
-  state.generating = true;
-  if (ec) ec.classList.remove('show');
-  ov.classList.add('active');
-  setStatus('loading', 'Generating...');
-
-  var mi = 0;
-  $('loadingText').textContent = loadMsgs[0];
-  var iv = setInterval(function() {
-    mi = (mi + 1) % loadMsgs.length;
-    $('loadingText').textContent = loadMsgs[mi];
-  }, 1800);
-
+  var modelId=($('modelSelect')||{}).value||'gpt-image-1';
+  var gt=document.querySelector('.settings-row .setting-select');
+  var garmentType=gt?gt.value:'Upper Body';
+  var ab=document.querySelector('.toggle-btn.active');
+  var styleMode=ab?ab.textContent:'Realistic';
+  var ov=$('loadingOverlay'), ec=$('errorCard');
+  state.generating=true; if(ec) ec.classList.remove('show');
+  ov.classList.add('active'); setStatus('loading','Generating...');
+  var mi=0; $('loadingText').textContent=loadMsgs[0];
+  var iv=setInterval(function(){ mi=(mi+1)%loadMsgs.length; $('loadingText').textContent=loadMsgs[mi]; },1800);
   try {
-    // Use Claude to describe the outfit image first
-    var garmentDesc = garmentType;
-    if (state.img2Data) {
+    var garmentDesc=garmentType;
+    if(state.img2Data) {
       try {
-        var descResp = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'x-api-key': _ant, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
-          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 80, system: 'Describe clothing in one short sentence for image generation. Focus on: garment type, colour, fabric, fit only. No extra words.', messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: state.img2Data.split(',')[1] } }, { type: 'text', text: 'Describe this garment in one sentence.' }] }] })
-        });
-        if (descResp.ok) {
-          var descData = await descResp.json();
-          garmentDesc = descData.content[0].text;
-        }
-      } catch(descErr) { /* fallback to garmentType */ }
+        var dr=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:80,system:'Describe clothing in one short sentence for image generation. Garment type, colour, fabric, fit only.',messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:state.img2Data.split(',')[1]}},{type:'text',text:'Describe this garment in one sentence.'}]}]})});
+        if(dr.ok){ var dd=await dr.json(); garmentDesc=dd.content[0].text; }
+      }catch(de){}
     }
-
-    var prompt = 'Virtual fashion try-on editorial: person wearing ' + garmentDesc + ', ' + styleMode + ' style, photorealistic studio photography, clean neutral background, detailed fabric texture, professional lighting, sharp focus, 8k quality';
-
-    var imgResp = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + _ok, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelId, prompt: prompt, n: 1, size: '1024x1024', output_format: 'jpeg' })
-    });
-
-    if (!imgResp.ok) {
-      var errData = await imgResp.json().catch(function() { return {}; });
-      var msg = (errData.error && errData.error.message) ? errData.error.message : ('HTTP ' + imgResp.status);
-      var isbilling = msg.toLowerCase().indexOf('billing') !== -1 || imgResp.status === 402;
-      throw new Error(isbilling ? 'BILLING_LIMIT' : msg);
+    var prompt='Virtual fashion try-on editorial: person wearing '+garmentDesc+', '+styleMode+' style, photorealistic studio photography, clean neutral background, detailed fabric texture, professional lighting, 8k quality';
+    var ir=await fetch('https://api.openai.com/v1/images/generations',{method:'POST',headers:{'Authorization':'Bearer '+_ok,'Content-Type':'application/json'},body:JSON.stringify({model:modelId,prompt:prompt,n:1,size:'1024x1024',output_format:'jpeg'})});
+    if(!ir.ok){
+      var ed=await ir.json().catch(function(){return {}});
+      var em=(ed.error&&ed.error.message)||'HTTP '+ir.status;
+      throw new Error(em.toLowerCase().indexOf('billing')!==-1||ir.status===402?'BILLING_LIMIT':em);
     }
-
-    var result = await imgResp.json();
-    var b64 = result.data && result.data[0] && result.data[0].b64_json;
-    if (!b64) throw new Error('No image returned from API');
-
-    clearInterval(iv);
-    ov.classList.remove('active');
-    setStatus('ready', 'Done');
-    showResultImage('data:image/jpeg;base64,' + b64);
-    showToast('Generated with ' + modelId);
-
+    var res=await ir.json();
+    var b64=res.data&&res.data[0]&&res.data[0].b64_json;
+    if(!b64) throw new Error('No image returned');
+    clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
+    showResultImage('data:image/jpeg;base64,'+b64);
+    showToast('Generated with '+modelId);
   } catch(err) {
-    clearInterval(iv);
-    ov.classList.remove('active');
-    setStatus('error', 'Error');
-    if (ec) {
+    clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
+    if(ec) {
       ec.classList.add('show');
-      $('errorMsg').textContent = err.message === 'BILLING_LIMIT'
-        ? 'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
-        : 'Generation failed: ' + String(err.message || err).slice(0, 250);
+      $('errorMsg').textContent=err.message==='BILLING_LIMIT'
+        ?'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
+        :'Generation failed: '+String(err.message||err).slice(0,250);
     }
     showToast('Generation failed');
   }
-
-  state.generating = false;
-  setStatus('ready', 'Ready');
+  state.generating=false; setStatus('ready','Ready');
 }
 
-/* ---- Init ---- */
+/* ── Init ── */
 function init() {
-  var sel = $('modelSelect');
-  if (sel) {
-    sel.innerHTML = '';
-    MODELS.forEach(function(m) {
-      var opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.label;
-      sel.appendChild(opt);
+  // Populate model selector
+  var sel=$('modelSelect');
+  if(sel){
+    sel.innerHTML='';
+    MODELS.forEach(function(m){
+      var o=document.createElement('option'); o.value=m.id; o.textContent=m.label; sel.appendChild(o);
     });
   }
 
-  // Add shake animation
-  var ss = document.createElement('style');
-  ss.textContent = '@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }';
+  // Wire file inputs via addEventListener (most reliable)
+  var f1=$('file1'), f2=$('file2');
+  if(f1) f1.addEventListener('change', function(e){ doUpload(e.target.files[0],1); });
+  if(f2) f2.addEventListener('change', function(e){ doUpload(e.target.files[0],2); });
+
+  // Shake animation
+  var ss=document.createElement('style');
+  ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}';
   document.head.appendChild(ss);
 
   injectAssistant();
 }
 
-/* ---- Expose to global scope ---- */
-window.triggerUpload    = triggerUpload;
-window.handleUpload     = handleUpload;
-window.removeImage      = removeImage;
-window.setToggle        = setToggle;
-window.startGeneration  = startGeneration;
-window.downloadResult   = downloadResult;
-window.shareResult      = shareResult;
-window.tryAnother       = tryAnother;
-window.saveToGallery    = saveToGallery;
-window.shuffleOutfit    = shuffleOutfit;
-window.clearAll         = clearAll;
+/* ── Global exports ── */
+window.removeImage     = removeImage;
+window.setToggle       = setToggle;
+window.startGeneration = startGeneration;
+window.downloadResult  = downloadResult;
+window.shareResult     = shareResult;
+window.tryAnother      = tryAnother;
+window.saveToGallery   = saveToGallery;
+window.shuffleOutfit   = shuffleOutfit;
+window.clearAll        = clearAll;
 
-// Namespace for dynamically injected buttons
-window._drape = { askAI: askAI, quickAsk: quickAsk };
-
-if (document.readyState === 'loading') {
+// Safe init
+if(document.readyState==='loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
 }
 
-})(); // end IIFE
+})();
 </script>
 </body>
 </html>
