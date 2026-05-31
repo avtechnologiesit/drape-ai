@@ -405,45 +405,30 @@ $id('generateBtn').addEventListener('click', async function() {
     var garmentDesc = garmentType;
     if (img2Data) {
       try {
-        var dr = await fetch('https://api.anthropic.com/v1/messages', {
+        var dr = await fetch('/api/describe', {
           method: 'POST',
-          headers: {
-            'x-api-key': _ant,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
-          body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
-            max_tokens: 80,
-            system: 'Describe the clothing item in one sentence: garment type, colour, fabric, fit. No extra words.',
-            messages: [{ role: 'user', content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: img2Data.split(',')[1] } },
-              { type: 'text', text: 'Describe this garment.' }
-            ]}]
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: [img2Data], garmentType: garmentType })
         });
-        if (dr.ok) { var dd = await dr.json(); garmentDesc = dd.content[0].text; }
+        if (dr.ok) { var dd = await dr.json(); if (dd.text) garmentDesc = dd.text; }
       } catch(de) { /* fallback */ }
     }
 
     var prompt = 'Fashion try-on photo: person wearing ' + garmentDesc +
       ', ' + styleMode + ' style, photorealistic, studio lighting, clean background, detailed fabric, 8k';
 
-    var ir = await fetch('https://api.openai.com/v1/images/generations', {
+    var ir = await fetch('/api/generate', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + _ok, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelId, prompt: prompt, n: 1, size: '1024x1024', output_format: 'jpeg' })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: modelId, prompt: prompt })
     });
 
-    if (!ir.ok) {
-      var ed = await ir.json().catch(function(){ return {}; });
-      var em = (ed.error && ed.error.message) || ('HTTP ' + ir.status);
-      throw new Error(em.toLowerCase().indexOf('billing') !== -1 || ir.status === 402 ? 'BILLING_LIMIT' : em);
+    var res = await ir.json();
+    if (!ir.ok || res.error) {
+      throw new Error(res.error || 'HTTP ' + ir.status);
     }
 
-    var res = await ir.json();
-    var b64 = res.data && res.data[0] && res.data[0].b64_json;
+    var b64 = res.b64;
     if (!b64) throw new Error('No image returned');
 
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready', 'Done');
@@ -499,13 +484,18 @@ async function askAI() {
   if (img2Data) { mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}}); mc.push({type:'text',text:'Reference outfit.'}); }
   mc.push({type:'text', text:'Garment: '+garment+'. Question: '+q});
   try {
-    var r = await fetch('https://api.anthropic.com/v1/messages', {
+    var imgs = [];
+    if (img1Data) imgs.push(img1Data);
+    if (img2Data) imgs.push(img2Data);
+    var r = await fetch('/api/describe', {
       method: 'POST',
-      headers: {'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:'You are DRAPE, expert AI fashion stylist. Give specific practical advice in 2-4 sentences based on the images.',messages:[{role:'user',content:mc}]})
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ images: imgs, garmentType: garment, question: q })
     });
     if (!r.ok) throw new Error('HTTP '+r.status);
-    var d = await r.json(); ans.textContent = d.content[0].text; toast('Claude answered');
+    var d = await r.json();
+    if (d.error) throw new Error(d.error);
+    ans.textContent = d.text; toast('Claude answered');
   } catch(e) {
     try {
       var r2 = await fetch(_ub, {method:'POST',headers:{'Content-Type':'application/json'},
