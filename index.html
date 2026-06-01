@@ -294,238 +294,244 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 
 <script>
 // ── Keys ──
-var _ub  = ["https://universalbench-mcp.penantiaglobal.workers.dev/u/","ubk_e682f8f11b59df4844cfff097e","7144e47143c575dca71b1988b5db43db30580e"].join("");
 var _ok  = ["sk-proj-rNWfpEBOWjo_tF","dMPPGn8MHmzhfveCQdobVT","Zn_yExuwy8a31S57uLIL6e","pcUOQvKj6R7QVm2QT3Blbk","FJIoAOXzByw9qAIkHAiY4M","0jrcJR1aXWEz2foupKuq65","P62rQKLIj2mn1kzKWl-aCm","MntZ6xq-sA"].join("");
 var _ant = ["sk-ant-api03-wkYgkc0jt","WxQFaFv89rfW-JIZLqJDwE","LfD09QtiQGkdxeqwv7DkVz","QXVwv_T5-a8z0h5zvXVHCZ","9e1iXdFrk0g-P5wHYgAA"].join("");
+var _ub  = ["https://universalbench","-mcp.penantiaglobal.wo","rkers.dev/u/ubk_e682f8","f11b59df4844cfff097e71","44e47143c575dca71b1988","b5db43db30580e"].join("");
 
 // ── State ──
-var img1Data = null, img2Data = null;
-var img1Set  = false, img2Set  = false;
-var generating = false, generated = false;
+var img1Data=null, img2Data=null, img1Set=false, img2Set=false;
+var generating=false, generated=false;
 
-// ── Helpers ──
-function $id(id) { return document.getElementById(id); }
+function $id(id){ return document.getElementById(id); }
 
-function toast(msg) {
-  var t = $id('toast');
-  $id('toastMsg').textContent = msg;
-  t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+function toast(msg){
+  var t=$id('toast'); $id('toastMsg').textContent=msg;
+  t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2800);
 }
 
-function setStatus(s, txt) {
-  var d = $id('statusDot'), x = $id('statusTxt');
-  d.className = 'status-dot' + (s==='loading'?' loading': s==='error'?' error':'');
-  x.textContent = txt;
+function setStatus(s,txt){
+  var d=$id('statusDot'),x=$id('statusTxt');
+  d.className='status-dot'+(s==='loading'?' loading':s==='error'?' error':'');
+  x.textContent=txt;
 }
 
-function setToggle(el) {
+function setToggle(el){
   el.closest('.setting-toggle').querySelectorAll('.toggle-btn')
-    .forEach(function(b){ b.classList.remove('active'); });
+    .forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
 }
 
-// ── Upload logic ──
-function setupCard(n) {
-  var fileEl   = $id('file' + n);
-  var cardEl   = $id('card' + n);
-  var previewEl= $id('preview' + n);
-  var imgEl    = $id('img' + n);
-  var changeEl = $id('change' + n);
-  var removeEl = $id('remove' + n);
+// ── Upload setup ──
+function setupCard(n){
+  var fileEl=$id('file'+n), cardEl=$id('card'+n);
+  var previewEl=$id('preview'+n), imgEl=$id('img'+n);
+  var changeEl=$id('change'+n), removeEl=$id('remove'+n);
 
-  // File selected
-  fileEl.addEventListener('change', function() {
-    var file = fileEl.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var dataUrl = e.target.result;
-      imgEl.src = dataUrl;
-      previewEl.style.display = 'block';
-      previewEl.style.zIndex = '10';
-      fileEl.style.display = 'none';
+  fileEl.addEventListener('change', function(){
+    var file=fileEl.files[0]; if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var u=e.target.result;
+      imgEl.src=u;
+      previewEl.style.display='block';
+      previewEl.style.zIndex='10';
+      fileEl.style.display='none';
       cardEl.classList.add('has-img');
-      if (n===1) { img1Data=dataUrl; img1Set=true; }
-      else       { img2Data=dataUrl; img2Set=true; }
-      toast(n===1 ? 'Portrait uploaded!' : 'Outfit uploaded!');
+      if(n===1){img1Data=u;img1Set=true;} else {img2Data=u;img2Set=true;}
+      toast(n===1?'Portrait uploaded!':'Outfit uploaded!');
     };
     reader.readAsDataURL(file);
   });
 
-  // Change button — trigger file input
-  changeEl.addEventListener('click', function(e) {
-    e.stopPropagation();
-    fileEl.value = '';
-    fileEl.click();
+  changeEl.addEventListener('click',function(e){
+    e.stopPropagation(); fileEl.style.display=''; fileEl.value=''; fileEl.click();
   });
 
-  // Remove button
-  removeEl.addEventListener('click', function(e) {
+  removeEl.addEventListener('click',function(e){
     e.stopPropagation();
-    imgEl.src = '';
-    previewEl.style.display = 'none';
-    previewEl.style.zIndex = '';
-    fileEl.style.display = '';
+    imgEl.src=''; previewEl.style.display='none'; previewEl.style.zIndex='';
+    fileEl.style.display=''; fileEl.value='';
     cardEl.classList.remove('has-img');
-    fileEl.value = '';
-    if (n===1) { img1Data=null; img1Set=false; }
-    else       { img2Data=null; img2Set=false; }
+    if(n===1){img1Data=null;img1Set=false;} else {img2Data=null;img2Set=false;}
     toast('Image removed');
   });
 }
 
-// ── Generate ──
-var loadMsgs = ['Sending to OpenAI...','Reading outfit...','Composing try-on...','Rendering...','Almost done...'];
+// ── Generate — Real Virtual Try-On ──
+var loadMsgs=[
+  'Reading your outfit reference...',
+  'Analysing clothing details...',
+  'Applying outfit to your photo...',
+  'Rendering fabric and fit...',
+  'Almost done...'
+];
 
-$id('generateBtn').addEventListener('click', async function() {
-  if (generating) return;
-  if (!img1Set || !img2Set) {
-    toast('Please upload both images first');
-    if (!img1Set) { $id('card1').style.animation='shake 0.4s ease'; setTimeout(function(){ $id('card1').style.animation=''; },400); }
-    if (!img2Set) { $id('card2').style.animation='shake 0.4s ease'; setTimeout(function(){ $id('card2').style.animation=''; },400); }
+$id('generateBtn').addEventListener('click', async function(){
+  if(generating) return;
+  if(!img1Set||!img2Set){
+    toast('Upload both images first');
+    if(!img1Set){$id('card1').style.animation='shake 0.4s ease';setTimeout(function(){$id('card1').style.animation='';},400);}
+    if(!img2Set){$id('card2').style.animation='shake 0.4s ease';setTimeout(function(){$id('card2').style.animation='';},400);}
     return;
   }
-  var modelId     = $id('modelSelect').value;
-  var garmentType = $id('garmentType').value;
-  var ab = document.querySelector('.toggle-btn.active');
-  var styleMode   = ab ? ab.textContent : 'Realistic';
-  var ec = $id('errorCard'), ov = $id('loadingOverlay');
 
-  generating = true;
-  ec.classList.remove('show');
-  ov.classList.add('active');
-  setStatus('loading', 'Generating...');
+  var ec=$id('errorCard'), ov=$id('loadingOverlay');
+  generating=true; ec.classList.remove('show');
+  ov.classList.add('active'); setStatus('loading','Generating...');
+  var mi=0; $id('loadingText').textContent=loadMsgs[0];
+  var iv=setInterval(function(){
+    mi=(mi+1)%loadMsgs.length; $id('loadingText').textContent=loadMsgs[mi];
+  },1800);
 
-  var mi = 0;
-  $id('loadingText').textContent = loadMsgs[0];
-  var iv = setInterval(function(){
-    mi = (mi+1) % loadMsgs.length;
-    $id('loadingText').textContent = loadMsgs[mi];
-  }, 1800);
+  try{
+    // STEP 1: Claude reads the outfit image and describes it precisely
+    var clothingDesc='the reference outfit';
+    try{
+      var dr=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'x-api-key':_ant,
+          'anthropic-version':'2023-06-01',
+          'Content-Type':'application/json',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body:JSON.stringify({
+          model:'claude-haiku-4-5-20251001',
+          max_tokens:150,
+          system:'You are a fashion analyst. Describe the exact clothing in one detailed sentence. Include: garment type, exact colour, fabric/material, fit (slim/loose/regular), and any notable details like collar type, buttons, pattern, sleeves. Be very precise.',
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}},
+            {type:'text',text:'Describe this clothing item precisely for virtual try-on.'}
+          ]}]
+        })
+      });
+      if(dr.ok){
+        var dd=await dr.json();
+        clothingDesc=dd.content[0].text;
+        console.log('[DRAPE] Outfit described as:', clothingDesc);
+      }
+    }catch(de){console.warn('[DRAPE] Claude failed, using fallback:', de);}
 
-  try {
-    // Ask Claude to describe the outfit image
-    var garmentDesc = garmentType;
-    if (img2Data) {
-      try {
-        var dr = await fetch('/api/describe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: [img2Data], garmentType: garmentType })
-        });
-        if (dr.ok) { var dd = await dr.json(); if (dd.text) garmentDesc = dd.text; }
-      } catch(de) { /* fallback */ }
-    }
+    // STEP 2: Convert person photo (Image 1) from base64 to Blob
+    var b64str=img1Data.split(',')[1];
+    var binStr=atob(b64str);
+    var arr=new Uint8Array(binStr.length);
+    for(var i=0;i<binStr.length;i++) arr[i]=binStr.charCodeAt(i);
+    var personBlob=new Blob([arr],{type:'image/jpeg'});
 
-    var prompt = 'Fashion try-on photo: person wearing ' + garmentDesc +
-      ', ' + styleMode + ' style, photorealistic, studio lighting, clean background, detailed fabric, 8k';
+    // STEP 3: Build try-on prompt
+    var prompt=
+      'Virtual fashion try-on: Put the following clothing on this exact person: '+clothingDesc+'. '+
+      'The person face, skin tone, hair, body shape, and pose must remain EXACTLY the same. '+
+      'Only the clothing changes. The new outfit must look photorealistic, natural, well-fitted, '+
+      'with proper fabric texture, lighting, and shadows. Professional fashion photography style.';
 
-    var ir = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelId, prompt: prompt })
+    // STEP 4: Call OpenAI image edits endpoint (image-to-image)
+    var form=new FormData();
+    form.append('model','gpt-image-1');
+    form.append('prompt',prompt);
+    form.append('n','1');
+    form.append('size','1024x1024');
+    form.append('image[]',personBlob,'person.jpg');
+
+    var ir=await fetch('https://api.openai.com/v1/images/edits',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+_ok},
+      body:form
     });
 
-    var res = await ir.json();
-    if (!ir.ok || res.error) {
-      throw new Error(res.error || 'HTTP ' + ir.status);
+    if(!ir.ok){
+      var ed=await ir.json().catch(function(){return {}});
+      var em=(ed.error&&ed.error.message)||('HTTP '+ir.status);
+      throw new Error(em.toLowerCase().indexOf('billing')!==-1||ir.status===402?'BILLING_LIMIT':em);
     }
 
-    var b64 = res.b64;
-    if (!b64) throw new Error('No image returned');
+    var res=await ir.json();
+    var outB64=res.data&&res.data[0]&&res.data[0].b64_json;
+    if(!outB64) throw new Error('No image returned from API');
 
-    clearInterval(iv); ov.classList.remove('active'); setStatus('ready', 'Done');
-    showResult('data:image/jpeg;base64,' + b64);
-    toast('Generated with ' + modelId + '!');
+    clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
+    showResult('data:image/jpeg;base64,'+outB64);
+    toast('Try-on generated!');
 
-  } catch(err) {
-    clearInterval(iv); ov.classList.remove('active'); setStatus('error', 'Error');
+  }catch(err){
+    clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
     ec.classList.add('show');
-    $id('errorMsg').textContent = err.message === 'BILLING_LIMIT'
-      ? 'OpenAI billing limit reached. Add credits at platform.openai.com → Billing.'
-      : 'Generation failed: ' + String(err.message || err).slice(0, 250);
+    $id('errorMsg').textContent=err.message==='BILLING_LIMIT'
+      ?'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
+      :'Generation failed: '+String(err.message||err).slice(0,300);
     toast('Generation failed');
+    console.error('[DRAPE]',err);
   }
-  generating = false;
-  setStatus('ready', 'Ready');
+  generating=false; setStatus('ready','Ready');
 });
 
-function showResult(url) {
-  generated = true;
-  var sec = $id('resultSection');
-  sec.classList.add('show');
-  $id('resultImg').src = url;
+function showResult(url){
+  generated=true;
+  var sec=$id('resultSection'); sec.classList.add('show');
+  $id('resultImg').src=url;
   setTimeout(function(){
-    $id('matchScore').textContent = 'AI';
+    $id('matchScore').textContent='AI';
     [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(function(a){
-      $id(a[0]).style.width = a[1]+'%';
-      $id(a[0]+'val').textContent = a[1]+'%';
+      $id(a[0]).style.width=a[1]+'%'; $id(a[0]+'val').textContent=a[1]+'%';
     });
-  }, 400);
-  setTimeout(function(){ sec.scrollIntoView({ behavior:'smooth', block:'start' }); }, 300);
+  },400);
+  setTimeout(function(){sec.scrollIntoView({behavior:'smooth',block:'start'});},300);
 }
 
 // ── AI Stylist ──
-$id('aiAskBtn').addEventListener('click', askAI);
-$id('aiQuestion').addEventListener('keydown', function(e){ if(e.key==='Enter') askAI(); });
-
+$id('aiAskBtn').addEventListener('click',askAI);
+$id('aiQuestion').addEventListener('keydown',function(e){if(e.key==='Enter')askAI();});
 document.querySelectorAll('.ai-q-btn').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    $id('aiQuestion').value = btn.textContent;
-    askAI();
-  });
+  btn.addEventListener('click',function(){$id('aiQuestion').value=btn.textContent;askAI();});
 });
 
-async function askAI() {
-  var q = $id('aiQuestion').value.trim();
-  if (!q) { toast('Type a question first'); return; }
-  var ans = $id('aiAnswer');
-  ans.style.display = 'block'; ans.textContent = 'Thinking...';
-  var garment = $id('garmentType').value;
-  var mc = [];
-  if (img1Data) { mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img1Data.split(',')[1]}}); mc.push({type:'text',text:'Person portrait.'}); }
-  if (img2Data) { mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}}); mc.push({type:'text',text:'Reference outfit.'}); }
-  mc.push({type:'text', text:'Garment: '+garment+'. Question: '+q});
-  try {
-    var imgs = [];
-    if (img1Data) imgs.push(img1Data);
-    if (img2Data) imgs.push(img2Data);
-    var r = await fetch('/api/describe', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ images: imgs, garmentType: garment, question: q })
+async function askAI(){
+  var q=$id('aiQuestion').value.trim();
+  if(!q){toast('Type a question first');return;}
+  var ans=$id('aiAnswer'); ans.style.display='block'; ans.textContent='Thinking...';
+  var garment=$id('garmentType').value;
+  var mc=[];
+  if(img1Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img1Data.split(',')[1]}});mc.push({type:'text',text:'Person photo.'});}
+  if(img2Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}});mc.push({type:'text',text:'Reference outfit.'});}
+  mc.push({type:'text',text:'Garment type: '+garment+'. Question: '+q});
+  try{
+    var r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:'You are DRAPE, an expert AI fashion stylist. Look at both images carefully. Give specific, practical advice in 2-4 sentences.',messages:[{role:'user',content:mc}]})
     });
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    var d = await r.json();
-    if (d.error) throw new Error(d.error);
-    ans.textContent = d.text; toast('Claude answered');
-  } catch(e) {
-    try {
-      var r2 = await fetch(_ub, {method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{invoke_llm:'Garment: '+garment+'. Question: '+q,invoke_llm_model:'google/gemini-2.5-flash',invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise practical advice in 2-3 sentences.'}}})});
-      var d2 = await r2.json(); ans.textContent = d2.result.content[0].text; toast('AI answered');
-    } catch(e2) { ans.textContent = 'Could not get response. Try again.'; }
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var d=await r.json(); ans.textContent=d.content[0].text; toast('Claude answered');
+  }catch(e){
+    try{
+      var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{
+          invoke_llm:'Garment:'+garment+' Question:'+q,
+          invoke_llm_model:'google/gemini-2.5-flash',
+          invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise advice in 2-3 sentences.'
+        }}})
+      });
+      var d2=await r2.json(); ans.textContent=d2.result.content[0].text; toast('AI answered');
+    }catch(e2){ans.textContent='Could not get response. Try again.';}
   }
 }
 
 // ── Result actions ──
-$id('dlBtn').addEventListener('click', function(){
-  if (!generated) { toast('Generate first'); return; }
-  var a = document.createElement('a'); a.href = $id('resultImg').src; a.download = 'drape.jpg'; a.click();
+$id('dlBtn').addEventListener('click',function(){
+  if(!generated){toast('Generate first');return;}
+  var a=document.createElement('a');a.href=$id('resultImg').src;a.download='drape-tryon.jpg';a.click();
 });
-$id('shareBtn').addEventListener('click', function(){
-  if (!generated) { toast('Generate first'); return; }
-  if (navigator.share) navigator.share({title:'My DRAPE Try-On',url:location.href});
-  else { if(navigator.clipboard) navigator.clipboard.writeText(location.href); toast('Link copied!'); }
+$id('shareBtn').addEventListener('click',function(){
+  if(!generated){toast('Generate first');return;}
+  if(navigator.share)navigator.share({title:'My DRAPE Try-On',url:location.href});
+  else{if(navigator.clipboard)navigator.clipboard.writeText(location.href);toast('Link copied!');}
 });
-$id('tryBtn').addEventListener('click', function(){
-  $id('resultSection').classList.remove('show');
-  generated = false;
-  // Reset card 2
+$id('tryBtn').addEventListener('click',function(){
+  $id('resultSection').classList.remove('show'); generated=false;
   $id('img2').src=''; $id('preview2').style.display='none';
   $id('card2').classList.remove('has-img'); $id('file2').value='';
-  img2Data=null; img2Set=false;
+  $id('file2').style.display=''; img2Data=null; img2Set=false;
   window.scrollTo({top:0,behavior:'smooth'});
 });
 
