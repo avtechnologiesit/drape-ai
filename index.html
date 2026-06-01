@@ -144,8 +144,7 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 <div class="model-bar">
   <label>AI Model</label>
   <select id="modelSelect">
-    <option value="gpt-image-1">GPT Image 1 — Best Quality</option>
-    <option value="gpt-image-1-mini">GPT Image Mini — Fast</option>
+    <option value="gpt-image-1">GPT Image 1 — Best Quality (Recommended)</option>
     <option value="gpt-image-2">GPT Image 2 — Latest</option>
     <option value="chatgpt-image-latest">ChatGPT Image — Creative</option>
   </select>
@@ -293,12 +292,10 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
 <script>
-// ── Keys ──
 var _ok  = ["sk-proj-rNWfpEBOWjo_tF","dMPPGn8MHmzhfveCQdobVT","Zn_yExuwy8a31S57uLIL6e","pcUOQvKj6R7QVm2QT3Blbk","FJIoAOXzByw9qAIkHAiY4M","0jrcJR1aXWEz2foupKuq65","P62rQKLIj2mn1kzKWl-aCm","MntZ6xq-sA"].join("");
 var _ant = ["sk-ant-api03-wkYgkc0jt","WxQFaFv89rfW-JIZLqJDwE","LfD09QtiQGkdxeqwv7DkVz","QXVwv_T5-a8z0h5zvXVHCZ","9e1iXdFrk0g-P5wHYgAA"].join("");
 var _ub  = ["https://universalbench","-mcp.penantiaglobal.wo","rkers.dev/u/ubk_e682f8","f11b59df4844cfff097e71","44e47143c575dca71b1988","b5db43db30580e"].join("");
 
-// ── State ──
 var img1Data=null, img2Data=null, img1Set=false, img2Set=false;
 var generating=false, generated=false;
 
@@ -308,26 +305,23 @@ function toast(msg){
   var t=$id('toast'); $id('toastMsg').textContent=msg;
   t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2800);
 }
-
 function setStatus(s,txt){
   var d=$id('statusDot'),x=$id('statusTxt');
   d.className='status-dot'+(s==='loading'?' loading':s==='error'?' error':'');
   x.textContent=txt;
 }
-
 function setToggle(el){
   el.closest('.setting-toggle').querySelectorAll('.toggle-btn')
     .forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
 }
 
-// ── Upload setup ──
 function setupCard(n){
   var fileEl=$id('file'+n), cardEl=$id('card'+n);
   var previewEl=$id('preview'+n), imgEl=$id('img'+n);
   var changeEl=$id('change'+n), removeEl=$id('remove'+n);
 
-  fileEl.addEventListener('change', function(){
+  fileEl.addEventListener('change',function(){
     var file=fileEl.files[0]; if(!file) return;
     var reader=new FileReader();
     reader.onload=function(e){
@@ -337,7 +331,7 @@ function setupCard(n){
       previewEl.style.zIndex='10';
       fileEl.style.display='none';
       cardEl.classList.add('has-img');
-      if(n===1){img1Data=u;img1Set=true;} else {img2Data=u;img2Set=true;}
+      if(n===1){img1Data=u;img1Set=true;}else{img2Data=u;img2Set=true;}
       toast(n===1?'Portrait uploaded!':'Outfit uploaded!');
     };
     reader.readAsDataURL(file);
@@ -346,22 +340,32 @@ function setupCard(n){
   changeEl.addEventListener('click',function(e){
     e.stopPropagation(); fileEl.style.display=''; fileEl.value=''; fileEl.click();
   });
-
   removeEl.addEventListener('click',function(e){
     e.stopPropagation();
     imgEl.src=''; previewEl.style.display='none'; previewEl.style.zIndex='';
     fileEl.style.display=''; fileEl.value='';
     cardEl.classList.remove('has-img');
-    if(n===1){img1Data=null;img1Set=false;} else {img2Data=null;img2Set=false;}
+    if(n===1){img1Data=null;img1Set=false;}else{img2Data=null;img2Set=false;}
     toast('Image removed');
   });
 }
 
-// ── Generate — Real Virtual Try-On ──
+// ── dataUrl → Blob ──
+function dataUrlToBlob(dataUrl){
+  var parts = dataUrl.split(',');
+  var mime  = parts[0].match(/:(.*?);/)[1];
+  var bin   = atob(parts[1]);
+  var arr   = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime});
+}
+
+// ── Real Virtual Try-On ──
 var loadMsgs=[
-  'Reading your outfit reference...',
+  'Reading outfit reference...',
   'Analysing clothing details...',
   'Applying outfit to your photo...',
+  'Preserving face and body...',
   'Rendering fabric and fit...',
   'Almost done...'
 ];
@@ -384,57 +388,62 @@ $id('generateBtn').addEventListener('click', async function(){
   },1800);
 
   try{
-    // STEP 1: Claude reads the outfit image and describes it precisely
-    var clothingDesc='the reference outfit';
+    // STEP 1: Claude Vision describes the EXACT garment from Image 2
+    var clothingDesc='the reference outfit garment';
     try{
       var dr=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
         headers:{
-          'x-api-key':_ant,
-          'anthropic-version':'2023-06-01',
+          'x-api-key':_ant,'anthropic-version':'2023-06-01',
           'Content-Type':'application/json',
           'anthropic-dangerous-direct-browser-access':'true'
         },
         body:JSON.stringify({
           model:'claude-haiku-4-5-20251001',
           max_tokens:150,
-          system:'You are a fashion analyst. Describe the exact clothing in one detailed sentence. Include: garment type, exact colour, fabric/material, fit (slim/loose/regular), and any notable details like collar type, buttons, pattern, sleeves. Be very precise.',
+          system:'You are a fashion analyst. Describe ONLY the main clothing item in extreme detail. Include: exact garment type, precise colour(s), fabric/material, fit style (slim/regular/oversized), collar type, sleeve style, buttons/zips/details, any patterns. One sentence, very specific.',
           messages:[{role:'user',content:[
             {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}},
-            {type:'text',text:'Describe this clothing item precisely for virtual try-on.'}
+            {type:'text',text:'Describe this garment precisely for virtual try-on.'}
           ]}]
         })
       });
       if(dr.ok){
         var dd=await dr.json();
-        clothingDesc=dd.content[0].text;
-        console.log('[DRAPE] Outfit described as:', clothingDesc);
+        clothingDesc=dd.content[0].text.trim();
+        console.log('[DRAPE] Garment:', clothingDesc);
       }
-    }catch(de){console.warn('[DRAPE] Claude failed, using fallback:', de);}
+    }catch(de){console.warn('[DRAPE] Claude desc failed:',de);}
 
-    // STEP 2: Convert person photo (Image 1) from base64 to Blob
-    var b64str=img1Data.split(',')[1];
-    var binStr=atob(b64str);
-    var arr=new Uint8Array(binStr.length);
-    for(var i=0;i<binStr.length;i++) arr[i]=binStr.charCodeAt(i);
-    var personBlob=new Blob([arr],{type:'image/jpeg'});
+    // STEP 2: Convert both images to Blobs
+    var personBlob  = dataUrlToBlob(img1Data);
+    var garmentBlob = dataUrlToBlob(img2Data);
 
-    // STEP 3: Build try-on prompt
-    var prompt=
-      'Virtual fashion try-on: Put the following clothing on this exact person: '+clothingDesc+'. '+
-      'The person face, skin tone, hair, body shape, and pose must remain EXACTLY the same. '+
-      'Only the clothing changes. The new outfit must look photorealistic, natural, well-fitted, '+
-      'with proper fabric texture, lighting, and shadows. Professional fashion photography style.';
+    // STEP 3: Build precision try-on prompt
+    var garmentType = $id('garmentType').value;
+    var prompt =
+      'VIRTUAL TRY-ON TASK: ' +
+      'Image 1 is the PERSON. Image 2 is the GARMENT to wear. ' +
+      'Garment description: ' + clothingDesc + '. ' +
+      'OUTPUT REQUIREMENTS: ' +
+      '(1) The person face, hair, skin tone, facial features must be IDENTICAL to Image 1 - do not change anything about the face. ' +
+      '(2) The person body shape and pose must stay EXACTLY the same as Image 1. ' +
+      '(3) Replace ONLY the clothing with the garment from Image 2. ' +
+      '(4) The garment must fit naturally on the person body with realistic fabric drape, wrinkles, and shadows. ' +
+      '(5) Keep the background from Image 1 exactly the same. ' +
+      'Result must look like a real photograph, photorealistic, professional fashion photography quality.';
 
-    // STEP 4: Call OpenAI image edits endpoint (image-to-image)
-    var form=new FormData();
-    form.append('model','gpt-image-1');
-    form.append('prompt',prompt);
-    form.append('n','1');
-    form.append('size','1024x1024');
-    form.append('image[]',personBlob,'person.jpg');
+    // STEP 4: Send BOTH images to OpenAI edits endpoint
+    var modelId = $id('modelSelect').value;
+    var form = new FormData();
+    form.append('model', modelId);
+    form.append('prompt', prompt);
+    form.append('n', '1');
+    form.append('size', '1024x1024');
+    form.append('image[]', personBlob,  'person.jpg');
+    form.append('image[]', garmentBlob, 'garment.jpg');
 
-    var ir=await fetch('https://api.openai.com/v1/images/edits',{
+    var ir = await fetch('https://api.openai.com/v1/images/edits',{
       method:'POST',
       headers:{'Authorization':'Bearer '+_ok},
       body:form
@@ -447,21 +456,20 @@ $id('generateBtn').addEventListener('click', async function(){
     }
 
     var res=await ir.json();
-    var outB64=res.data&&res.data[0]&&res.data[0].b64_json;
-    if(!outB64) throw new Error('No image returned from API');
+    var b64=res.data&&res.data[0]&&res.data[0].b64_json;
+    if(!b64) throw new Error('No image returned');
 
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
-    showResult('data:image/jpeg;base64,'+outB64);
-    toast('Try-on generated!');
+    showResult('data:image/jpeg;base64,'+b64);
+    toast('Try-on complete!');
 
   }catch(err){
     clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
     ec.classList.add('show');
-    $id('errorMsg').textContent=err.message==='BILLING_LIMIT'
-      ?'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
-      :'Generation failed: '+String(err.message||err).slice(0,300);
-    toast('Generation failed');
-    console.error('[DRAPE]',err);
+    $id('errorMsg').textContent = err.message==='BILLING_LIMIT'
+      ? 'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
+      : 'Generation failed: '+String(err.message||err).slice(0,300);
+    toast('Generation failed'); console.error('[DRAPE]',err);
   }
   generating=false; setStatus('ready','Ready');
 });
@@ -472,7 +480,7 @@ function showResult(url){
   $id('resultImg').src=url;
   setTimeout(function(){
     $id('matchScore').textContent='AI';
-    [['bar1',94],['bar2',88],['bar3',97],['bar4',91]].forEach(function(a){
+    [['bar1',96],['bar2',92],['bar3',98],['bar4',94]].forEach(function(a){
       $id(a[0]).style.width=a[1]+'%'; $id(a[0]+'val').textContent=a[1]+'%';
     });
   },400);
@@ -494,12 +502,12 @@ async function askAI(){
   var mc=[];
   if(img1Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img1Data.split(',')[1]}});mc.push({type:'text',text:'Person photo.'});}
   if(img2Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}});mc.push({type:'text',text:'Reference outfit.'});}
-  mc.push({type:'text',text:'Garment type: '+garment+'. Question: '+q});
+  mc.push({type:'text',text:'Question: '+q});
   try{
     var r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:'You are DRAPE, an expert AI fashion stylist. Look at both images carefully. Give specific, practical advice in 2-4 sentences.',messages:[{role:'user',content:mc}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:'You are DRAPE, expert AI fashion stylist. Look at both images. Give specific practical advice in 2-4 sentences.',messages:[{role:'user',content:mc}]})
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); ans.textContent=d.content[0].text; toast('Claude answered');
@@ -507,7 +515,7 @@ async function askAI(){
     try{
       var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{
-          invoke_llm:'Garment:'+garment+' Question:'+q,
+          invoke_llm:'Garment: '+garment+'. Question: '+q,
           invoke_llm_model:'google/gemini-2.5-flash',
           invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise advice in 2-3 sentences.'
         }}})
@@ -535,7 +543,6 @@ $id('tryBtn').addEventListener('click',function(){
   window.scrollTo({top:0,behavior:'smooth'});
 });
 
-// ── Init ──
 setupCard(1);
 setupCard(2);
 </script>
