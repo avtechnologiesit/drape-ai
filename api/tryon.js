@@ -88,17 +88,17 @@ export default async function handler(req, res) {
           const r = await fetch(url);
           return Buffer.from(await r.arrayBuffer()).toString('base64');
         }));
-        const content = [
+        var content = [
           { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: strip(humanBase64) } },
           { type:'text', text: 'Original person' },
           { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: strip(garmentBase64) } },
-          { type:'text', text: 'Reference garment' },
-          ...b64s.flatMap((b, i) => [
-            { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: b } },
-            { type:'text', text: 'Option ' + (i+1) }
-          ]),
-          { type:'text', text: 'Which best preserves the person face AND shows the garment accurately? Reply: 1, 2, or 3 only.' }
+          { type:'text', text: 'Reference garment' }
         ];
+        b64s.forEach(function(b, i) {
+          content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data: b } });
+          content.push({ type:'text', text: 'Option ' + (i+1) });
+        });
+        content.push({ type:'text', text: 'Which best preserves the person face AND shows the garment accurately? Reply: 1, 2, or 3 only.' });
         const cr = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'x-api-key': ANT, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
