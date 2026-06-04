@@ -97,6 +97,13 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 /* RESULT */
 .result-section{display:none;margin-top:48px;}
 .result-section.show{display:grid;grid-template-columns:1fr 360px;gap:32px;}
+.variants-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.variant-card{background:var(--card-bg);border:2px solid var(--border);overflow:hidden;cursor:pointer;transition:border-color .2s,transform .2s;aspect-ratio:3/4;}
+.variant-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.variant-card.selected{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold);}
+.variant-card img{width:100%;height:100%;object-fit:cover;object-position:top;}
+.variant-label{font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;padding:6px;text-align:center;background:var(--ink);color:var(--cream);}
+.variant-badge{font-size:.5rem;background:var(--gold);color:var(--ink);padding:2px 6px;margin-left:4px;}
 .result-img-wrap{background:var(--card-bg);border:1px solid var(--border);aspect-ratio:3/4;overflow:hidden;}
 .result-img-wrap img{width:100%;height:100%;object-fit:cover;}
 .result-panel{display:flex;flex-direction:column;gap:20px;}
@@ -297,6 +304,7 @@ var _ub  = ["https://universalbench","-mcp.penantiaglobal.wo","rkers.dev/u/ubk_e
 
 var img1Data=null, img2Data=null, img1Set=false, img2Set=false;
 var generating=false, generated=false;
+var allOutputs=[], selectedOutput=null;
 
 function $id(id){ return document.getElementById(id); }
 
@@ -335,7 +343,6 @@ function setupCard(n){
     };
     reader.readAsDataURL(file);
   });
-
   changeEl.addEventListener('click',function(e){
     e.stopPropagation(); fileEl.style.display=''; fileEl.value=''; fileEl.click();
   });
@@ -350,13 +357,14 @@ function setupCard(n){
 }
 
 var loadMsgs=[
-  'Uploading your images...',
-  'Analysing outfit reference...',
-  'Detecting body pose...',
-  'Warping garment to your body...',
-  'Preserving your face and body...',
-  'Rendering final result...',
-  'Almost done...'
+  'Removing garment background...',
+  'Uploading images to AI...',
+  'Running 3 parallel try-ons...',
+  'Generating seed 1 of 3...',
+  'Generating seed 2 of 3...',
+  'Generating seed 3 of 3...',
+  'Claude is picking the best result...',
+  'Finalising your try-on...'
 ];
 
 $id('generateBtn').addEventListener('click', async function(){
@@ -374,10 +382,10 @@ $id('generateBtn').addEventListener('click', async function(){
   var mi=0; $id('loadingText').textContent=loadMsgs[0];
   var iv=setInterval(function(){
     mi=(mi+1)%loadMsgs.length; $id('loadingText').textContent=loadMsgs[mi];
-  },2000);
+  },3000);
 
   try{
-    // Step 1: Claude describes the exact garment from Image 2
+    // Step 1: Claude describes the garment precisely
     var garmentDes='clothing item';
     try{
       var dr=await fetch('https://api.anthropic.com/v1/messages',{
@@ -388,30 +396,28 @@ $id('generateBtn').addEventListener('click', async function(){
           'anthropic-dangerous-direct-browser-access':'true'
         },
         body:JSON.stringify({
-          model:'claude-haiku-4-5-20251001',
-          max_tokens:100,
-          system:'Describe the clothing item precisely in one sentence: garment type, colour, fabric, fit, collar, sleeves. Only the clothing, no background.',
+          model:'claude-haiku-4-5-20251001', max_tokens:120,
+          system:'Describe ONLY the main clothing item in one precise sentence: exact garment type, colour, fabric, fit, collar, sleeves, any notable details. No extra words.',
           messages:[{role:'user',content:[
             {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}},
-            {type:'text',text:'Describe this garment for virtual try-on.'}
+            {type:'text',text:'Describe this garment precisely for virtual try-on.'}
           ]}]
         })
       });
       if(dr.ok){ var dd=await dr.json(); garmentDes=dd.content[0].text.trim(); }
-    }catch(e){}
+    }catch(e){console.warn('Claude desc failed:',e);}
 
-    // Step 2: Get garment category from selector
-    var garmentType = $id('garmentType').value;
-    var category = 'upper_body';
+    // Step 2: Get category
+    var garmentType=$id('garmentType').value;
+    var category='upper_body';
     if(garmentType==='Lower Body') category='lower_body';
-    else if(garmentType==='Dress / One-piece') category='dresses';
-    else if(garmentType==='Full Body') category='dresses';
+    else if(garmentType==='Dress / One-piece'||garmentType==='Full Body') category='dresses';
 
-    // Step 3: Call our serverless IDM-VTON endpoint
-    var resp = await fetch('/api/tryon', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
+    // Step 3: Call the max-quality serverless pipeline
+    var resp=await fetch('/api/tryon',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
         humanBase64:  img1Data,
         garmentBase64: img2Data,
         garmentDes:   garmentDes,
@@ -420,17 +426,18 @@ $id('generateBtn').addEventListener('click', async function(){
     });
 
     if(!resp.ok){
-      var err = await resp.json().catch(function(){return {}});
-      throw new Error(err.error || 'HTTP '+resp.status);
+      var err=await resp.json().catch(function(){return {}});
+      throw new Error(err.error||'HTTP '+resp.status);
     }
 
-    var result = await resp.json();
-    var outputUrl = result.output;
-    if(!outputUrl) throw new Error('No output from IDM-VTON');
-
+    var result=await resp.json();
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
-    showResult(outputUrl);
-    toast('Try-on complete!');
+
+    allOutputs   = result.all_outputs || [result.output];
+    selectedOutput = result.output;
+
+    showAllResults(allOutputs, selectedOutput);
+    toast('Generated '+allOutputs.length+' results — best picked by AI!');
 
   }catch(err){
     clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
@@ -441,13 +448,37 @@ $id('generateBtn').addEventListener('click', async function(){
   generating=false; setStatus('ready','Ready');
 });
 
-function showResult(url){
+function showAllResults(outputs, bestUrl){
   generated=true;
   var sec=$id('resultSection'); sec.classList.add('show');
-  $id('resultImg').src=url;
+
+  // Build variants grid if we have multiple
+  var imgWrap=$id('resultImgWrap');
+  if(outputs.length>1){
+    // Insert variants grid before the main image
+    var existing=$id('variantsGrid');
+    if(existing) existing.remove();
+    var grid=document.createElement('div'); grid.id='variantsGrid'; grid.className='variants-grid';
+    outputs.forEach(function(url,i){
+      var card=document.createElement('div'); card.className='variant-card'+(url===bestUrl?' selected':'');
+      var isBest=(url===bestUrl);
+      card.innerHTML='<img src="'+url+'" alt="Option '+(i+1)+'">'
+        +'<div class="variant-label">Option '+(i+1)+(isBest?'<span class="variant-badge">AI PICK</span>':'')+'</div>';
+      card.addEventListener('click',function(){
+        document.querySelectorAll('.variant-card').forEach(function(c){c.classList.remove('selected');});
+        card.classList.add('selected');
+        $id('resultImg').src=url;
+        selectedOutput=url;
+      });
+      grid.appendChild(card);
+    });
+    sec.insertBefore(grid, sec.firstChild);
+  }
+
+  $id('resultImg').src=bestUrl;
   setTimeout(function(){
     $id('matchScore').textContent='AI';
-    [['bar1',97],['bar2',95],['bar3',98],['bar4',96]].forEach(function(a){
+    [['bar1',97],['bar2',94],['bar3',96],['bar4',95]].forEach(function(a){
       $id(a[0]).style.width=a[1]+'%'; $id(a[0]+'val').textContent=a[1]+'%';
     });
   },400);
@@ -469,12 +500,15 @@ async function askAI(){
   var mc=[];
   if(img1Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img1Data.split(',')[1]}});mc.push({type:'text',text:'Person photo.'});}
   if(img2Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}});mc.push({type:'text',text:'Reference outfit.'});}
+  if(selectedOutput){mc.push({type:'image',source:{type:'url',url:selectedOutput}});mc.push({type:'text',text:'Current try-on result.'});}
   mc.push({type:'text',text:'Question: '+q});
   try{
     var r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:'You are DRAPE, expert AI fashion stylist. Look at both images. Give specific practical advice in 2-4 sentences.',messages:[{role:'user',content:mc}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,
+        system:'You are DRAPE, expert AI fashion stylist. Look at all images including the try-on result. Give specific practical advice in 2-4 sentences.',
+        messages:[{role:'user',content:mc}]})
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); ans.textContent=d.content[0].text; toast('Claude answered');
@@ -482,7 +516,7 @@ async function askAI(){
     try{
       var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{
-          invoke_llm:'Garment: '+garment+'. Question: '+q,
+          invoke_llm:'Garment:'+garment+' Question:'+q,
           invoke_llm_model:'google/gemini-2.5-flash',
           invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise advice in 2-3 sentences.'
         }}})
@@ -494,7 +528,9 @@ async function askAI(){
 
 $id('dlBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
-  var a=document.createElement('a');a.href=$id('resultImg').src;a.download='drape-tryon.jpg';a.click();
+  var a=document.createElement('a');
+  a.href=selectedOutput||$id('resultImg').src;
+  a.download='drape-tryon.jpg'; a.click();
 });
 $id('shareBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
@@ -503,19 +539,12 @@ $id('shareBtn').addEventListener('click',function(){
 });
 $id('tryBtn').addEventListener('click',function(){
   $id('resultSection').classList.remove('show'); generated=false;
+  allOutputs=[]; selectedOutput=null;
+  var vg=$id('variantsGrid'); if(vg) vg.remove();
   $id('img2').src=''; $id('preview2').style.display='none';
   $id('card2').classList.remove('has-img'); $id('file2').value='';
   $id('file2').style.display=''; img2Data=null; img2Set=false;
   window.scrollTo({top:0,behavior:'smooth'});
-});
-
-// Also update model selector to reflect IDM-VTON
-document.addEventListener('DOMContentLoaded', function(){
-  var sel=$id('modelSelect');
-  if(sel){
-    sel.innerHTML='<option value="idm-vton">IDM-VTON — Photorealistic (Recommended)</option>'
-      +'<option value="idm-vton-hq">IDM-VTON HQ — Higher Steps</option>';
-  }
 });
 
 setupCard(1);
