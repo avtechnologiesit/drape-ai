@@ -292,7 +292,6 @@ main{max-width:1200px;margin:0 auto;padding:48px;}
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
 <script>
-var _ok  = ["sk-proj-rNWfpEBOWjo_tF","dMPPGn8MHmzhfveCQdobVT","Zn_yExuwy8a31S57uLIL6e","pcUOQvKj6R7QVm2QT3Blbk","FJIoAOXzByw9qAIkHAiY4M","0jrcJR1aXWEz2foupKuq65","P62rQKLIj2mn1kzKWl-aCm","MntZ6xq-sA"].join("");
 var _ant = ["sk-ant-api03-wkYgkc0jt","WxQFaFv89rfW-JIZLqJDwE","LfD09QtiQGkdxeqwv7DkVz","QXVwv_T5-a8z0h5zvXVHCZ","9e1iXdFrk0g-P5wHYgAA"].join("");
 var _ub  = ["https://universalbench","-mcp.penantiaglobal.wo","rkers.dev/u/ubk_e682f8","f11b59df4844cfff097e71","44e47143c575dca71b1988","b5db43db30580e"].join("");
 
@@ -350,23 +349,13 @@ function setupCard(n){
   });
 }
 
-// ── dataUrl → Blob ──
-function dataUrlToBlob(dataUrl){
-  var parts = dataUrl.split(',');
-  var mime  = parts[0].match(/:(.*?);/)[1];
-  var bin   = atob(parts[1]);
-  var arr   = new Uint8Array(bin.length);
-  for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-  return new Blob([arr],{type:mime});
-}
-
-// ── Real Virtual Try-On ──
 var loadMsgs=[
-  'Reading outfit reference...',
-  'Analysing clothing details...',
-  'Applying outfit to your photo...',
-  'Preserving face and body...',
-  'Rendering fabric and fit...',
+  'Uploading your images...',
+  'Analysing outfit reference...',
+  'Detecting body pose...',
+  'Warping garment to your body...',
+  'Preserving your face and body...',
+  'Rendering final result...',
   'Almost done...'
 ];
 
@@ -385,11 +374,11 @@ $id('generateBtn').addEventListener('click', async function(){
   var mi=0; $id('loadingText').textContent=loadMsgs[0];
   var iv=setInterval(function(){
     mi=(mi+1)%loadMsgs.length; $id('loadingText').textContent=loadMsgs[mi];
-  },1800);
+  },2000);
 
   try{
-    // STEP 1: Claude Vision describes the EXACT garment from Image 2
-    var clothingDesc='the reference outfit garment';
+    // Step 1: Claude describes the exact garment from Image 2
+    var garmentDes='clothing item';
     try{
       var dr=await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
@@ -400,75 +389,53 @@ $id('generateBtn').addEventListener('click', async function(){
         },
         body:JSON.stringify({
           model:'claude-haiku-4-5-20251001',
-          max_tokens:150,
-          system:'You are a fashion analyst. Describe ONLY the main clothing item in extreme detail. Include: exact garment type, precise colour(s), fabric/material, fit style (slim/regular/oversized), collar type, sleeve style, buttons/zips/details, any patterns. One sentence, very specific.',
+          max_tokens:100,
+          system:'Describe the clothing item precisely in one sentence: garment type, colour, fabric, fit, collar, sleeves. Only the clothing, no background.',
           messages:[{role:'user',content:[
             {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}},
-            {type:'text',text:'Describe this garment precisely for virtual try-on.'}
+            {type:'text',text:'Describe this garment for virtual try-on.'}
           ]}]
         })
       });
-      if(dr.ok){
-        var dd=await dr.json();
-        clothingDesc=dd.content[0].text.trim();
-        console.log('[DRAPE] Garment:', clothingDesc);
-      }
-    }catch(de){console.warn('[DRAPE] Claude desc failed:',de);}
+      if(dr.ok){ var dd=await dr.json(); garmentDes=dd.content[0].text.trim(); }
+    }catch(e){}
 
-    // STEP 2: Convert both images to Blobs
-    var personBlob  = dataUrlToBlob(img1Data);
-    var garmentBlob = dataUrlToBlob(img2Data);
-
-    // STEP 3: Build precision try-on prompt
+    // Step 2: Get garment category from selector
     var garmentType = $id('garmentType').value;
-    var prompt =
-      'VIRTUAL TRY-ON TASK: ' +
-      'Image 1 is the PERSON. Image 2 is the GARMENT to wear. ' +
-      'Garment description: ' + clothingDesc + '. ' +
-      'OUTPUT REQUIREMENTS: ' +
-      '(1) The person face, hair, skin tone, facial features must be IDENTICAL to Image 1 - do not change anything about the face. ' +
-      '(2) The person body shape and pose must stay EXACTLY the same as Image 1. ' +
-      '(3) Replace ONLY the clothing with the garment from Image 2. ' +
-      '(4) The garment must fit naturally on the person body with realistic fabric drape, wrinkles, and shadows. ' +
-      '(5) Keep the background from Image 1 exactly the same. ' +
-      'Result must look like a real photograph, photorealistic, professional fashion photography quality.';
+    var category = 'upper_body';
+    if(garmentType==='Lower Body') category='lower_body';
+    else if(garmentType==='Dress / One-piece') category='dresses';
+    else if(garmentType==='Full Body') category='dresses';
 
-    // STEP 4: Send BOTH images to OpenAI edits endpoint
-    var modelId = $id('modelSelect').value;
-    var form = new FormData();
-    form.append('model', modelId);
-    form.append('prompt', prompt);
-    form.append('n', '1');
-    form.append('size', '1024x1024');
-    form.append('image[]', personBlob,  'person.jpg');
-    form.append('image[]', garmentBlob, 'garment.jpg');
-
-    var ir = await fetch('https://api.openai.com/v1/images/edits',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+_ok},
-      body:form
+    // Step 3: Call our serverless IDM-VTON endpoint
+    var resp = await fetch('/api/tryon', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        humanBase64:  img1Data,
+        garmentBase64: img2Data,
+        garmentDes:   garmentDes,
+        category:     category
+      })
     });
 
-    if(!ir.ok){
-      var ed=await ir.json().catch(function(){return {}});
-      var em=(ed.error&&ed.error.message)||('HTTP '+ir.status);
-      throw new Error(em.toLowerCase().indexOf('billing')!==-1||ir.status===402?'BILLING_LIMIT':em);
+    if(!resp.ok){
+      var err = await resp.json().catch(function(){return {}});
+      throw new Error(err.error || 'HTTP '+resp.status);
     }
 
-    var res=await ir.json();
-    var b64=res.data&&res.data[0]&&res.data[0].b64_json;
-    if(!b64) throw new Error('No image returned');
+    var result = await resp.json();
+    var outputUrl = result.output;
+    if(!outputUrl) throw new Error('No output from IDM-VTON');
 
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
-    showResult('data:image/jpeg;base64,'+b64);
+    showResult(outputUrl);
     toast('Try-on complete!');
 
   }catch(err){
     clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
     ec.classList.add('show');
-    $id('errorMsg').textContent = err.message==='BILLING_LIMIT'
-      ? 'OpenAI billing limit reached. Add credits at platform.openai.com then try again.'
-      : 'Generation failed: '+String(err.message||err).slice(0,300);
+    $id('errorMsg').textContent='Generation failed: '+String(err.message||err).slice(0,300);
     toast('Generation failed'); console.error('[DRAPE]',err);
   }
   generating=false; setStatus('ready','Ready');
@@ -480,14 +447,14 @@ function showResult(url){
   $id('resultImg').src=url;
   setTimeout(function(){
     $id('matchScore').textContent='AI';
-    [['bar1',96],['bar2',92],['bar3',98],['bar4',94]].forEach(function(a){
+    [['bar1',97],['bar2',95],['bar3',98],['bar4',96]].forEach(function(a){
       $id(a[0]).style.width=a[1]+'%'; $id(a[0]+'val').textContent=a[1]+'%';
     });
   },400);
   setTimeout(function(){sec.scrollIntoView({behavior:'smooth',block:'start'});},300);
 }
 
-// ── AI Stylist ──
+// AI Stylist
 $id('aiAskBtn').addEventListener('click',askAI);
 $id('aiQuestion').addEventListener('keydown',function(e){if(e.key==='Enter')askAI();});
 document.querySelectorAll('.ai-q-btn').forEach(function(btn){
@@ -525,7 +492,6 @@ async function askAI(){
   }
 }
 
-// ── Result actions ──
 $id('dlBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
   var a=document.createElement('a');a.href=$id('resultImg').src;a.download='drape-tryon.jpg';a.click();
@@ -541,6 +507,15 @@ $id('tryBtn').addEventListener('click',function(){
   $id('card2').classList.remove('has-img'); $id('file2').value='';
   $id('file2').style.display=''; img2Data=null; img2Set=false;
   window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// Also update model selector to reflect IDM-VTON
+document.addEventListener('DOMContentLoaded', function(){
+  var sel=$id('modelSelect');
+  if(sel){
+    sel.innerHTML='<option value="idm-vton">IDM-VTON — Photorealistic (Recommended)</option>'
+      +'<option value="idm-vton-hq">IDM-VTON HQ — Higher Steps</option>';
+  }
 });
 
 setupCard(1);
