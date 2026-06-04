@@ -303,8 +303,7 @@ var _ant = ["sk-ant-api03-wkYgkc0jt","WxQFaFv89rfW-JIZLqJDwE","LfD09QtiQGkdxeqwv
 var _ub  = ["https://universalbench","-mcp.penantiaglobal.wo","rkers.dev/u/ubk_e682f8","f11b59df4844cfff097e71","44e47143c575dca71b1988","b5db43db30580e"].join("");
 
 var img1Data=null, img2Data=null, img1Set=false, img2Set=false;
-var generating=false, generated=false;
-var allOutputs=[], selectedOutput=null;
+var generating=false, generated=false, allOutputs=[], selectedOutput=null;
 
 function $id(id){ return document.getElementById(id); }
 
@@ -327,17 +326,13 @@ function setupCard(n){
   var fileEl=$id('file'+n), cardEl=$id('card'+n);
   var previewEl=$id('preview'+n), imgEl=$id('img'+n);
   var changeEl=$id('change'+n), removeEl=$id('remove'+n);
-
   fileEl.addEventListener('change',function(){
     var file=fileEl.files[0]; if(!file) return;
     var reader=new FileReader();
     reader.onload=function(e){
       var u=e.target.result;
-      imgEl.src=u;
-      previewEl.style.display='block';
-      previewEl.style.zIndex='10';
-      fileEl.style.display='none';
-      cardEl.classList.add('has-img');
+      imgEl.src=u; previewEl.style.display='block'; previewEl.style.zIndex='10';
+      fileEl.style.display='none'; cardEl.classList.add('has-img');
       if(n===1){img1Data=u;img1Set=true;}else{img2Data=u;img2Set=true;}
       toast(n===1?'Portrait uploaded!':'Outfit uploaded!');
     };
@@ -349,22 +344,20 @@ function setupCard(n){
   removeEl.addEventListener('click',function(e){
     e.stopPropagation();
     imgEl.src=''; previewEl.style.display='none'; previewEl.style.zIndex='';
-    fileEl.style.display=''; fileEl.value='';
-    cardEl.classList.remove('has-img');
+    fileEl.style.display=''; fileEl.value=''; cardEl.classList.remove('has-img');
     if(n===1){img1Data=null;img1Set=false;}else{img2Data=null;img2Set=false;}
     toast('Image removed');
   });
 }
 
 var loadMsgs=[
-  'Removing garment background...',
-  'Uploading images to AI...',
-  'Running 3 parallel try-ons...',
-  'Generating seed 1 of 3...',
-  'Generating seed 2 of 3...',
-  'Generating seed 3 of 3...',
+  'Uploading your photo...',
+  'Uploading outfit reference...',
+  'Running try-on seed 1...',
+  'Running try-on seed 2...',
+  'Running try-on seed 3...',
   'Claude is picking the best result...',
-  'Finalising your try-on...'
+  'Almost done...'
 ];
 
 $id('generateBtn').addEventListener('click', async function(){
@@ -375,7 +368,6 @@ $id('generateBtn').addEventListener('click', async function(){
     if(!img2Set){$id('card2').style.animation='shake 0.4s ease';setTimeout(function(){$id('card2').style.animation='';},400);}
     return;
   }
-
   var ec=$id('errorCard'), ov=$id('loadingOverlay');
   generating=true; ec.classList.remove('show');
   ov.classList.add('active'); setStatus('loading','Generating...');
@@ -385,59 +377,60 @@ $id('generateBtn').addEventListener('click', async function(){
   },3000);
 
   try{
-    // Step 1: Claude describes the garment precisely
+    // Step 1: Describe garment via Claude
     var garmentDes='clothing item';
     try{
-      var dr=await fetch('https://api.anthropic.com/v1/messages',{
+      var dr=await fetch('/api/describe',{
         method:'POST',
-        headers:{
-          'x-api-key':_ant,'anthropic-version':'2023-06-01',
-          'Content-Type':'application/json',
-          'anthropic-dangerous-direct-browser-access':'true'
-        },
-        body:JSON.stringify({
-          model:'claude-haiku-4-5-20251001', max_tokens:120,
-          system:'Describe ONLY the main clothing item in one precise sentence: exact garment type, colour, fabric, fit, collar, sleeves, any notable details. No extra words.',
-          messages:[{role:'user',content:[
-            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}},
-            {type:'text',text:'Describe this garment precisely for virtual try-on.'}
-          ]}]
-        })
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({images:[img2Data],garmentType:$id('garmentType').value})
       });
-      if(dr.ok){ var dd=await dr.json(); garmentDes=dd.content[0].text.trim(); }
-    }catch(e){console.warn('Claude desc failed:',e);}
+      if(dr.ok){ var dd=await dr.json(); garmentDes=dd.text||garmentDes; }
+    }catch(e){}
 
-    // Step 2: Get category
+    // Step 2: Upload both images to Replicate via /api/upload
+    // Each call sends one ~50KB image — well within body limits
     var garmentType=$id('garmentType').value;
     var category='upper_body';
     if(garmentType==='Lower Body') category='lower_body';
     else if(garmentType==='Dress / One-piece'||garmentType==='Full Body') category='dresses';
 
-    // Step 3: Call the max-quality serverless pipeline
-    var resp=await fetch('/api/tryon',{
+    $id('loadingText').textContent='Uploading your photo...';
+    var upHuman = await fetch('/api/upload',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        humanBase64:  img1Data,
-        garmentBase64: img2Data,
-        garmentDes:   garmentDes,
-        category:     category
-      })
+      body:JSON.stringify({imageBase64:img1Data,filename:'person.jpg'})
     });
+    if(!upHuman.ok) throw new Error('Person upload failed: ' + await upHuman.text());
+    var humanUrl = (await upHuman.json()).url;
 
+    $id('loadingText').textContent='Uploading outfit reference...';
+    var upGarment = await fetch('/api/upload',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({imageBase64:img2Data,filename:'garment.jpg'})
+    });
+    if(!upGarment.ok) throw new Error('Garment upload failed: ' + await upGarment.text());
+    var garmentUrl = (await upGarment.json()).url;
+
+    $id('loadingText').textContent='Running IDM-VTON (3 seeds)...';
+
+    // Step 3: Call /api/tryon with URLs only (tiny payload)
+    var resp = await fetch('/api/tryon',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({humanUrl:humanUrl,garmentUrl:garmentUrl,garmentDes:garmentDes,category:category})
+    });
     if(!resp.ok){
       var err=await resp.json().catch(function(){return {}});
       throw new Error(err.error||'HTTP '+resp.status);
     }
-
     var result=await resp.json();
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
-
-    allOutputs   = result.all_outputs || [result.output];
-    selectedOutput = result.output;
-
-    showAllResults(allOutputs, selectedOutput);
-    toast('Generated '+allOutputs.length+' results — best picked by AI!');
+    allOutputs=result.all_outputs||[result.output];
+    selectedOutput=result.output;
+    showAllResults(allOutputs, result.output);
+    toast('Generated '+allOutputs.length+' results!');
 
   }catch(err){
     clearInterval(iv); ov.classList.remove('active'); setStatus('error','Error');
@@ -451,30 +444,21 @@ $id('generateBtn').addEventListener('click', async function(){
 function showAllResults(outputs, bestUrl){
   generated=true;
   var sec=$id('resultSection'); sec.classList.add('show');
-
-  // Build variants grid if we have multiple
-  var imgWrap=$id('resultImgWrap');
   if(outputs.length>1){
-    // Insert variants grid before the main image
-    var existing=$id('variantsGrid');
-    if(existing) existing.remove();
+    var existing=$id('variantsGrid'); if(existing) existing.remove();
     var grid=document.createElement('div'); grid.id='variantsGrid'; grid.className='variants-grid';
     outputs.forEach(function(url,i){
       var card=document.createElement('div'); card.className='variant-card'+(url===bestUrl?' selected':'');
-      var isBest=(url===bestUrl);
-      card.innerHTML='<img src="'+url+'" alt="Option '+(i+1)+'">'
-        +'<div class="variant-label">Option '+(i+1)+(isBest?'<span class="variant-badge">AI PICK</span>':'')+'</div>';
+      card.innerHTML='<img src="'+url+'" alt="Option '+(i+1)+'" style="width:100%;height:100%;object-fit:cover;object-position:top;">'
+        +'<div class="variant-label">Option '+(i+1)+(url===bestUrl?'<span class="variant-badge">AI PICK</span>':'')+'</div>';
       card.addEventListener('click',function(){
         document.querySelectorAll('.variant-card').forEach(function(c){c.classList.remove('selected');});
-        card.classList.add('selected');
-        $id('resultImg').src=url;
-        selectedOutput=url;
+        card.classList.add('selected'); $id('resultImg').src=url; selectedOutput=url;
       });
       grid.appendChild(card);
     });
     sec.insertBefore(grid, sec.firstChild);
   }
-
   $id('resultImg').src=bestUrl;
   setTimeout(function(){
     $id('matchScore').textContent='AI';
@@ -496,29 +480,20 @@ async function askAI(){
   var q=$id('aiQuestion').value.trim();
   if(!q){toast('Type a question first');return;}
   var ans=$id('aiAnswer'); ans.style.display='block'; ans.textContent='Thinking...';
-  var garment=$id('garmentType').value;
-  var mc=[];
-  if(img1Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img1Data.split(',')[1]}});mc.push({type:'text',text:'Person photo.'});}
-  if(img2Data){mc.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img2Data.split(',')[1]}});mc.push({type:'text',text:'Reference outfit.'});}
-  if(selectedOutput){mc.push({type:'image',source:{type:'url',url:selectedOutput}});mc.push({type:'text',text:'Current try-on result.'});}
-  mc.push({type:'text',text:'Question: '+q});
   try{
-    var r=await fetch('https://api.anthropic.com/v1/messages',{
+    var r=await fetch('/api/describe',{
       method:'POST',
-      headers:{'x-api-key':_ant,'anthropic-version':'2023-06-01','Content-Type':'application/json','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,
-        system:'You are DRAPE, expert AI fashion stylist. Look at all images including the try-on result. Give specific practical advice in 2-4 sentences.',
-        messages:[{role:'user',content:mc}]})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({images:[img1Data,img2Data].filter(Boolean),garmentType:$id('garmentType').value,question:q})
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
-    var d=await r.json(); ans.textContent=d.content[0].text; toast('Claude answered');
+    var d=await r.json(); ans.textContent=d.text; toast('Claude answered');
   }catch(e){
     try{
       var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{
-          invoke_llm:'Garment:'+garment+' Question:'+q,
-          invoke_llm_model:'google/gemini-2.5-flash',
-          invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise advice in 2-3 sentences.'
+          invoke_llm:'Question: '+q,invoke_llm_model:'google/gemini-2.5-flash',
+          invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise practical advice in 2-3 sentences.'
         }}})
       });
       var d2=await r2.json(); ans.textContent=d2.result.content[0].text; toast('AI answered');
@@ -528,9 +503,7 @@ async function askAI(){
 
 $id('dlBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
-  var a=document.createElement('a');
-  a.href=selectedOutput||$id('resultImg').src;
-  a.download='drape-tryon.jpg'; a.click();
+  var a=document.createElement('a'); a.href=selectedOutput||$id('resultImg').src; a.download='drape-tryon.jpg'; a.click();
 });
 $id('shareBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
@@ -547,8 +520,7 @@ $id('tryBtn').addEventListener('click',function(){
   window.scrollTo({top:0,behavior:'smooth'});
 });
 
-setupCard(1);
-setupCard(2);
+setupCard(1); setupCard(2);
 </script>
 </body>
 </html>
