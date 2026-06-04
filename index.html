@@ -325,7 +325,6 @@ function setToggle(el){
 function setupCard(n){
   var fileEl=$id('file'+n), cardEl=$id('card'+n);
   var previewEl=$id('preview'+n), imgEl=$id('img'+n);
-  var changeEl=$id('change'+n), removeEl=$id('remove'+n);
   fileEl.addEventListener('change',function(){
     var file=fileEl.files[0]; if(!file) return;
     var reader=new FileReader();
@@ -338,10 +337,10 @@ function setupCard(n){
     };
     reader.readAsDataURL(file);
   });
-  changeEl.addEventListener('click',function(e){
+  $id('change'+n).addEventListener('click',function(e){
     e.stopPropagation(); fileEl.style.display=''; fileEl.value=''; fileEl.click();
   });
-  removeEl.addEventListener('click',function(e){
+  $id('remove'+n).addEventListener('click',function(e){
     e.stopPropagation();
     imgEl.src=''; previewEl.style.display='none'; previewEl.style.zIndex='';
     fileEl.style.display=''; fileEl.value=''; cardEl.classList.remove('has-img');
@@ -350,14 +349,47 @@ function setupCard(n){
   });
 }
 
+// Upload image directly from browser to Replicate
+async function uploadToReplicate(dataUrl, filename) {
+  // Get token from our serverless function
+  var tokenResp = await fetch('/api/upload', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!tokenResp.ok) throw new Error('Could not get upload token');
+  var tokenData = await tokenResp.json();
+  var r8token = tokenData.token;
+
+  // Convert dataUrl to Blob
+  var raw = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  var mime = dataUrl.startsWith('data:image/') ? dataUrl.split(';')[0].split(':')[1] : 'image/jpeg';
+  var bytes = atob(raw);
+  var arr = new Uint8Array(bytes.length);
+  for(var i=0;i<bytes.length;i++) arr[i]=bytes.charCodeAt(i);
+  var blob = new Blob([arr], {type: mime});
+
+  // Upload directly to Replicate from browser
+  var form = new FormData();
+  form.append('content', blob, filename);
+
+  var uploadResp = await fetch('https://api.replicate.com/v1/files', {
+    method: 'POST',
+    headers: { 'Authorization': 'Token ' + r8token },
+    body: form
+  });
+  if(!uploadResp.ok) {
+    var err = await uploadResp.text();
+    throw new Error('Replicate upload failed: ' + err.slice(0,100));
+  }
+  var data = await uploadResp.json();
+  return data.urls.get;
+}
+
 var loadMsgs=[
-  'Uploading your photo...',
+  'Uploading your photo to AI...',
   'Uploading outfit reference...',
-  'Running try-on seed 1...',
-  'Running try-on seed 2...',
-  'Running try-on seed 3...',
+  'Generating try-on seed 1 of 3...',
+  'Generating try-on seed 2 of 3...',
+  'Generating try-on seed 3 of 3...',
   'Claude is picking the best result...',
-  'Almost done...'
+  'Finalising your try-on...'
 ];
 
 $id('generateBtn').addEventListener('click', async function(){
@@ -377,48 +409,32 @@ $id('generateBtn').addEventListener('click', async function(){
   },3000);
 
   try{
-    // Step 1: Describe garment via Claude
+    // Step 1: Describe garment
     var garmentDes='clothing item';
     try{
-      var dr=await fetch('/api/describe',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({images:[img2Data],garmentType:$id('garmentType').value})
-      });
+      var dr=await fetch('/api/describe',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({images:[img2Data],garmentType:$id('garmentType').value})});
       if(dr.ok){ var dd=await dr.json(); garmentDes=dd.text||garmentDes; }
-    }catch(e){}
+    }catch(e){ console.warn('Describe failed:',e.message); }
 
-    // Step 2: Upload both images to Replicate via /api/upload
-    // Each call sends one ~50KB image — well within body limits
+    // Step 2: Upload images directly from browser to Replicate
     var garmentType=$id('garmentType').value;
     var category='upper_body';
     if(garmentType==='Lower Body') category='lower_body';
     else if(garmentType==='Dress / One-piece'||garmentType==='Full Body') category='dresses';
 
-    $id('loadingText').textContent='Uploading your photo...';
-    var upHuman = await fetch('/api/upload',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({imageBase64:img1Data,filename:'person.jpg'})
-    });
-    if(!upHuman.ok) throw new Error('Person upload failed: ' + await upHuman.text());
-    var humanUrl = (await upHuman.json()).url;
+    $id('loadingText').textContent='Uploading images...';
+    var urls = await Promise.all([
+      uploadToReplicate(img1Data, 'person.jpg'),
+      uploadToReplicate(img2Data, 'garment.jpg')
+    ]);
+    var humanUrl = urls[0], garmentUrl = urls[1];
+    console.log('[DRAPE] Uploaded. Person:', humanUrl.slice(-20), 'Garment:', garmentUrl.slice(-20));
 
-    $id('loadingText').textContent='Uploading outfit reference...';
-    var upGarment = await fetch('/api/upload',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({imageBase64:img2Data,filename:'garment.jpg'})
-    });
-    if(!upGarment.ok) throw new Error('Garment upload failed: ' + await upGarment.text());
-    var garmentUrl = (await upGarment.json()).url;
-
-    $id('loadingText').textContent='Running IDM-VTON (3 seeds)...';
-
-    // Step 3: Call /api/tryon with URLs only (tiny payload)
-    var resp = await fetch('/api/tryon',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+    // Step 3: Call /api/tryon with just URLs (tiny JSON payload)
+    $id('loadingText').textContent='Running IDM-VTON...';
+    var resp=await fetch('/api/tryon',{
+      method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({humanUrl:humanUrl,garmentUrl:garmentUrl,garmentDes:garmentDes,category:category})
     });
     if(!resp.ok){
@@ -469,7 +485,6 @@ function showAllResults(outputs, bestUrl){
   setTimeout(function(){sec.scrollIntoView({behavior:'smooth',block:'start'});},300);
 }
 
-// AI Stylist
 $id('aiAskBtn').addEventListener('click',askAI);
 $id('aiQuestion').addEventListener('keydown',function(e){if(e.key==='Enter')askAI();});
 document.querySelectorAll('.ai-q-btn').forEach(function(btn){
@@ -481,11 +496,8 @@ async function askAI(){
   if(!q){toast('Type a question first');return;}
   var ans=$id('aiAnswer'); ans.style.display='block'; ans.textContent='Thinking...';
   try{
-    var r=await fetch('/api/describe',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({images:[img1Data,img2Data].filter(Boolean),garmentType:$id('garmentType').value,question:q})
-    });
+    var r=await fetch('/api/describe',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({images:[img1Data,img2Data].filter(Boolean),garmentType:$id('garmentType').value,question:q})});
     if(!r.ok) throw new Error('HTTP '+r.status);
     var d=await r.json(); ans.textContent=d.text; toast('Claude answered');
   }catch(e){
