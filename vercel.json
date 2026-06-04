@@ -1,1 +1,7 @@
-{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}
+{
+  "functions": {
+    "api/tryon.js": {
+      "maxDuration": 120
+    }
+  }
+}
