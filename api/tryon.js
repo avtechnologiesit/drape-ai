@@ -16,13 +16,49 @@ export default async function handler(req, res) {
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-    // ── Upload to Replicate ──────────────────────────────────────────────────
+    // Detect actual mime type from data URL or buffer magic bytes
+    function getMimeType(b64Data) {
+      const raw = b64Data.includes(',') ? b64Data.split(',')[1] : b64Data;
+      // Check data URL prefix first
+      if (b64Data.startsWith('data:')) {
+        const mime = b64Data.split(';')[0].split(':')[1];
+        if (mime) return mime;
+      }
+      // Check magic bytes
+      const buf = Buffer.from(raw.slice(0, 8), 'base64');
+      if (buf[0] === 0xFF && buf[1] === 0xD8) return 'image/jpeg';
+      if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png';
+      if (buf[0] === 0x52 && buf[1] === 0x49) return 'image/webp';
+      if (buf[0] === 0x47 && buf[1] === 0x49) return 'image/gif';
+      return 'image/jpeg'; // fallback
+    }
+
+    function getExtension(mime) {
+      const map = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'jpg' };
+      return map[mime] || 'jpg';
+    }
+
+    // Convert any image to JPEG using sharp (built into Vercel Node runtime)
+    async function toJpeg(b64Data) {
+      const raw    = b64Data.includes(',') ? b64Data.split(',')[1] : b64Data;
+      const buffer = Buffer.from(raw, 'base64');
+      try {
+        const sharp = (await import('sharp')).default;
+        return await sharp(buffer).jpeg({ quality: 95 }).toBuffer();
+      } catch(e) {
+        // If sharp not available, return original buffer
+        return buffer;
+      }
+    }
+
+    // Upload to Replicate
     async function upload(b64Data, filename) {
-      const b64    = b64Data.includes(',') ? b64Data.split(',')[1] : b64Data;
-      const buffer = Buffer.from(b64, 'base64');
+      // Convert to JPEG for maximum compatibility
+      const buffer   = await toJpeg(b64Data);
       const boundary = 'DrapeB' + Date.now();
-      const CRLF = '\r\n';
-      const head = Buffer.from(
+      const CRLF     = '
+';
+      const head     = Buffer.from(
         '--' + boundary + CRLF +
         'Content-Disposition: form-data; name="content"; filename="' + filename + '"' + CRLF +
         'Content-Type: image/jpeg' + CRLF + CRLF
@@ -40,11 +76,11 @@ export default async function handler(req, res) {
         body
       });
       const text = await resp.text();
-      if (!resp.ok) throw new Error('Upload failed (' + resp.status + '): ' + text.slice(0,120));
+      if (!resp.ok) throw new Error('Upload failed (' + resp.status + '): ' + text.slice(0,150));
       return JSON.parse(text).urls.get;
     }
 
-    // ── Run IDM-VTON ─────────────────────────────────────────────────────────
+    // Run IDM-VTON
     async function runVTON(humanUrl, garmentUrl, des, cat, seed) {
       const predResp = await fetch('https://api.replicate.com/v1/predictions', {
         method: 'POST',
@@ -62,10 +98,9 @@ export default async function handler(req, res) {
           }
         })
       });
-
       const predData = await predResp.json();
       if (!predData.id) throw new Error('No prediction ID: ' + JSON.stringify(predData).slice(0,150));
-      console.log('[DRAPE] Prediction created:', predData.id, 'seed:', seed);
+      console.log('[DRAPE] Prediction', predData.id, 'seed', seed);
 
       for (let i = 0; i < 25; i++) {
         await sleep(3000);
@@ -73,46 +108,40 @@ export default async function handler(req, res) {
           headers: { 'Authorization': 'Token ' + R8 }
         });
         const p = await poll.json();
-        console.log('[DRAPE] Poll', i+1, ':', p.status);
+        console.log('[DRAPE] Poll', i+1, p.status, p.error || '');
         if (p.status === 'succeeded') return p.output;
         if (p.status === 'failed' || p.status === 'canceled')
-          throw new Error('Prediction ' + p.status + ': ' + (p.error || 'unknown error'));
+          throw new Error('Seed ' + seed + ' ' + p.status + ': ' + (p.error || ''));
       }
-      throw new Error('Timed out after 75s waiting for IDM-VTON');
+      throw new Error('Seed ' + seed + ' timed out after 75s');
     }
 
-    // ── MAIN ─────────────────────────────────────────────────────────────────
-    console.log('[DRAPE] Starting. Uploading images...');
-
+    // MAIN
+    console.log('[DRAPE] Starting pipeline...');
     const [humanUrl, garmentUrl] = await Promise.all([
       upload(humanBase64,   'person.jpg'),
       upload(garmentBase64, 'garment.jpg')
     ]);
-    console.log('[DRAPE] Both images uploaded');
+    console.log('[DRAPE] Uploaded both images');
 
-    // Run 3 seeds sequentially — each takes ~20s, total ~60s well within 120s limit
     const seeds   = [42, 123, 777];
     const outputs = [];
-
     for (const seed of seeds) {
       try {
         console.log('[DRAPE] Running seed', seed);
         const out = await runVTON(humanUrl, garmentUrl, garmentDes, category, seed);
         outputs.push(out);
-        console.log('[DRAPE] Seed', seed, 'done:', out);
         if (outputs.length < seeds.length) await sleep(1000);
       } catch(e) {
         console.warn('[DRAPE] Seed', seed, 'failed:', e.message);
       }
     }
 
-    if (outputs.length === 0) {
-      throw new Error('All seeds failed. Check Replicate balance at replicate.com/account/billing');
-    }
+    if (outputs.length === 0)
+      throw new Error('All seeds failed. Last error likely: invalid image format or Replicate error.');
 
-    // Pick best with Claude if multiple outputs, else return single
+    // Claude picks best
     let bestUrl = outputs[0];
-
     if (outputs.length > 1 && ANT) {
       try {
         const outputB64s = await Promise.all(outputs.map(async url => {
@@ -132,7 +161,7 @@ export default async function handler(req, res) {
           content.push({ type:'text',  text: 'Option ' + (i+1) });
         });
         content.push({ type:'text', text:
-          'Which option best preserves the exact face from the original person AND most accurately shows the reference garment? Reply with only: 1, 2, or 3.'
+          'Which option best preserves the person face AND shows the reference garment? Reply only: 1, 2, or 3.'
         });
         const cr = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -145,20 +174,14 @@ export default async function handler(req, res) {
         });
         const cd = await cr.json();
         const pick = parseInt(cd.content?.[0]?.text?.trim()) || 1;
-        const idx  = Math.min(Math.max(pick - 1, 0), outputs.length - 1);
-        bestUrl = outputs[idx];
-        console.log('[DRAPE] Claude picked option', pick);
+        bestUrl = outputs[Math.min(Math.max(pick-1,0), outputs.length-1)];
+        console.log('[DRAPE] Claude picked', pick);
       } catch(e) {
-        console.warn('[DRAPE] Claude pick failed, using first result:', e.message);
+        console.warn('[DRAPE] Claude pick failed:', e.message);
       }
     }
 
-    console.log('[DRAPE] Done! Returning', outputs.length, 'results');
-    return res.status(200).json({
-      output:      bestUrl,
-      all_outputs: outputs,
-      seeds_used:  outputs.length
-    });
+    return res.status(200).json({ output: bestUrl, all_outputs: outputs, seeds_used: outputs.length });
 
   } catch (err) {
     console.error('[DRAPE error]', err.message);
