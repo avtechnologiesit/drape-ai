@@ -5,31 +5,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
   try {
-    const { imageBase64, filename } = req.body;
-    if (!imageBase64) { res.status(400).json({ error: 'Missing imageBase64' }); return; }
     const R8 = process.env.REPLICATE_API_TOKEN;
     if (!R8) { res.status(500).json({ error: 'REPLICATE_API_TOKEN not set' }); return; }
-    const raw = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-    const ct  = imageBase64.startsWith('data:image/') ? imageBase64.split(';')[0].split(':')[1] : 'image/jpeg';
-    const buf = Buffer.from(raw, 'base64');
-    const bnd = 'U' + Date.now();
-    const CR  = '
-';
-    const fn  = filename || 'image.jpg';
-    const h   = Buffer.from('--' + bnd + CR + 'Content-Disposition: form-data; name="content"; filename="' + fn + '"' + CR + 'Content-Type: ' + ct + CR + CR);
-    const t   = Buffer.from(CR + '--' + bnd + '--' + CR);
-    const body = Buffer.concat([h, buf, t]);
-    const r = await fetch('https://api.replicate.com/v1/files', {
-      method: 'POST',
-      headers: { 'Authorization': 'Token ' + R8, 'Content-Type': 'multipart/form-data; boundary=' + bnd, 'Content-Length': String(body.length) },
-      body: body
-    });
-    const txt = await r.text();
-    if (!r.ok) throw new Error('Replicate upload failed ' + r.status + ': ' + txt.slice(0, 100));
-    const data = JSON.parse(txt);
-    res.status(200).json({ url: data.urls.get });
+    // Return the token so browser can upload directly
+    // Browser will POST multipart directly to api.replicate.com/v1/files
+    res.status(200).json({ token: R8, uploadUrl: 'https://api.replicate.com/v1/files' });
   } catch(err) {
-    console.error('[upload]', err.message);
     res.status(500).json({ error: err.message });
   }
 }
