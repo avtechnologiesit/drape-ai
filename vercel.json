@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "api/tryon.js": {
-      "maxDuration": 120
-    }
-  }
-}
+{"buildCommand": null}
