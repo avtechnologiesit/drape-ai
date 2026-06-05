@@ -306,7 +306,6 @@ var img1Data=null, img2Data=null, img1Set=false, img2Set=false;
 var generating=false, generated=false, allOutputs=[], selectedOutput=null;
 
 function $id(id){ return document.getElementById(id); }
-
 function toast(msg){
   var t=$id('toast'); $id('toastMsg').textContent=msg;
   t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2800);
@@ -349,46 +348,27 @@ function setupCard(n){
   });
 }
 
-// Resize image to max 800px before uploading (reduces payload size)
-async function resizeImage(dataUrl, maxPx) {
-  return new Promise(function(resolve) {
-    var img = new Image();
-    img.onload = function() {
-      var w = img.width, h = img.height;
-      if(w <= maxPx && h <= maxPx) { resolve(dataUrl); return; }
-      var scale = maxPx / Math.max(w, h);
-      var canvas = document.createElement('canvas');
-      canvas.width = Math.round(w * scale);
-      canvas.height = Math.round(h * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', 0.88));
+// Resize image client-side before sending
+async function resizeImg(dataUrl, maxPx){
+  return new Promise(function(resolve){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w<=maxPx&&h<=maxPx){resolve(dataUrl);return;}
+      var sc=maxPx/Math.max(w,h);
+      var c=document.createElement('canvas');
+      c.width=Math.round(w*sc); c.height=Math.round(h*sc);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      resolve(c.toDataURL('image/jpeg',0.85));
     };
-    img.src = dataUrl;
+    img.src=dataUrl;
   });
-}
-
-async function uploadImage(dataUrl, filename) {
-  // Resize first to keep payload small
-  var resized = await resizeImage(dataUrl, 900);
-  var resp = await fetch('/api/imgupload', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({imageBase64: resized, filename: filename})
-  });
-  if(!resp.ok) {
-    var err = await resp.text();
-    throw new Error('Upload failed (' + resp.status + '): ' + err.slice(0,100));
-  }
-  var data = await resp.json();
-  if(!data.url) throw new Error('No URL returned from upload');
-  return data.url;
 }
 
 var loadMsgs=[
-  'Uploading your photo...', 'Uploading outfit reference...',
-  'Running try-on seed 1 of 3...', 'Running try-on seed 2 of 3...',
-  'Running try-on seed 3 of 3...', 'Claude picking best result...',
-  'Finalising your try-on...'
+  'Uploading photos to AI...','Analysing outfit reference...',
+  'Running try-on seed 1 of 3...','Running try-on seed 2 of 3...',
+  'Running try-on seed 3 of 3...','Claude picking best result...','Almost done...'
 ];
 
 $id('generateBtn').addEventListener('click', async function(){
@@ -399,13 +379,11 @@ $id('generateBtn').addEventListener('click', async function(){
     if(!img2Set){$id('card2').style.animation='shake 0.4s ease';setTimeout(function(){$id('card2').style.animation='';},400);}
     return;
   }
-  var ec=$id('errorCard'), ov=$id('loadingOverlay');
+  var ec=$id('errorCard'),ov=$id('loadingOverlay');
   generating=true; ec.classList.remove('show');
   ov.classList.add('active'); setStatus('loading','Generating...');
   var mi=0; $id('loadingText').textContent=loadMsgs[0];
-  var iv=setInterval(function(){
-    mi=(mi+1)%loadMsgs.length; $id('loadingText').textContent=loadMsgs[mi];
-  },3500);
+  var iv=setInterval(function(){mi=(mi+1)%loadMsgs.length;$id('loadingText').textContent=loadMsgs[mi];},3500);
 
   try{
     // Describe garment
@@ -414,26 +392,25 @@ $id('generateBtn').addEventListener('click', async function(){
       var dr=await fetch('/api/describe',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({images:[img2Data],garmentType:$id('garmentType').value})});
       if(dr.ok) garmentDes=(await dr.json()).text||garmentDes;
-    }catch(e){ console.warn('Describe failed'); }
+    }catch(e){}
 
-    // Category
     var garmentType=$id('garmentType').value;
     var category='upper_body';
     if(garmentType==='Lower Body') category='lower_body';
     else if(garmentType==='Dress / One-piece'||garmentType==='Full Body') category='dresses';
 
-    // Upload via server (10mb limit)
-    $id('loadingText').textContent='Uploading your photo...';
-    var humanUrl = await uploadImage(img1Data, 'person.jpg');
-    $id('loadingText').textContent='Uploading outfit reference...';
-    var garmentUrl = await uploadImage(img2Data, 'garment.jpg');
-    console.log('[DRAPE] Uploads done');
+    // Resize images client-side (keeps payload small)
+    var h1=await resizeImg(img1Data,900);
+    var h2=await resizeImg(img2Data,900);
+    console.log('[DRAPE] Resized. Sending to /api/tryon...');
 
-    // Call tryon with URLs only
-    $id('loadingText').textContent='Running IDM-VTON...';
+    // Send base64 directly — tryon.js handles upload internally
     var resp=await fetch('/api/tryon',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({humanUrl:humanUrl,garmentUrl:garmentUrl,garmentDes:garmentDes,category:category})
+      body:JSON.stringify({
+        humanBase64:h1, garmentBase64:h2,
+        garmentDes:garmentDes, category:category
+      })
     });
     if(!resp.ok){
       var err=await resp.json().catch(function(){return {}});
@@ -443,7 +420,7 @@ $id('generateBtn').addEventListener('click', async function(){
     clearInterval(iv); ov.classList.remove('active'); setStatus('ready','Done');
     allOutputs=result.all_outputs||[result.output];
     selectedOutput=result.output;
-    showAllResults(allOutputs, result.output);
+    showAllResults(allOutputs,result.output);
     toast('Generated '+allOutputs.length+' results!');
 
   }catch(err){
@@ -455,7 +432,7 @@ $id('generateBtn').addEventListener('click', async function(){
   generating=false; setStatus('ready','Ready');
 });
 
-function showAllResults(outputs, bestUrl){
+function showAllResults(outputs,bestUrl){
   generated=true;
   var sec=$id('resultSection'); sec.classList.add('show');
   if(outputs.length>1){
@@ -472,13 +449,13 @@ function showAllResults(outputs, bestUrl){
       });
       grid.appendChild(card);
     });
-    sec.insertBefore(grid, sec.firstChild);
+    sec.insertBefore(grid,sec.firstChild);
   }
   $id('resultImg').src=bestUrl;
   setTimeout(function(){
     $id('matchScore').textContent='AI';
     [['bar1',97],['bar2',94],['bar3',96],['bar4',95]].forEach(function(a){
-      $id(a[0]).style.width=a[1]+'%'; $id(a[0]+'val').textContent=a[1]+'%';
+      $id(a[0]).style.width=a[1]+'%';$id(a[0]+'val').textContent=a[1]+'%';
     });
   },400);
   setTimeout(function(){sec.scrollIntoView({behavior:'smooth',block:'start'});},300);
@@ -489,32 +466,28 @@ $id('aiQuestion').addEventListener('keydown',function(e){if(e.key==='Enter')askA
 document.querySelectorAll('.ai-q-btn').forEach(function(btn){
   btn.addEventListener('click',function(){$id('aiQuestion').value=btn.textContent;askAI();});
 });
-
 async function askAI(){
-  var q=$id('aiQuestion').value.trim();
-  if(!q){toast('Type a question first');return;}
+  var q=$id('aiQuestion').value.trim(); if(!q){toast('Type a question first');return;}
   var ans=$id('aiAnswer'); ans.style.display='block'; ans.textContent='Thinking...';
   try{
     var r=await fetch('/api/describe',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({images:[img1Data,img2Data].filter(Boolean),garmentType:$id('garmentType').value,question:q})});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    var d=await r.json(); ans.textContent=d.text; toast('Claude answered');
+    ans.textContent=(await r.json()).text; toast('Claude answered');
   }catch(e){
     try{
       var r2=await fetch(_ub,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'ub_ai',arguments:{
           invoke_llm:'Question: '+q,invoke_llm_model:'google/gemini-2.5-flash',
           invoke_llm_system:'You are DRAPE, expert fashion stylist. Give concise practical advice in 2-3 sentences.'
-        }}})
-      });
-      var d2=await r2.json(); ans.textContent=d2.result.content[0].text; toast('AI answered');
+        }}})});
+      ans.textContent=(await r2.json()).result.content[0].text; toast('AI answered');
     }catch(e2){ans.textContent='Could not get response. Try again.';}
   }
 }
-
 $id('dlBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
-  var a=document.createElement('a'); a.href=selectedOutput||$id('resultImg').src; a.download='drape-tryon.jpg'; a.click();
+  var a=document.createElement('a');a.href=selectedOutput||$id('resultImg').src;a.download='drape-tryon.jpg';a.click();
 });
 $id('shareBtn').addEventListener('click',function(){
   if(!generated){toast('Generate first');return;}
@@ -522,15 +495,14 @@ $id('shareBtn').addEventListener('click',function(){
   else{if(navigator.clipboard)navigator.clipboard.writeText(location.href);toast('Link copied!');}
 });
 $id('tryBtn').addEventListener('click',function(){
-  $id('resultSection').classList.remove('show'); generated=false;
-  allOutputs=[]; selectedOutput=null;
-  var vg=$id('variantsGrid'); if(vg) vg.remove();
-  $id('img2').src=''; $id('preview2').style.display='none';
-  $id('card2').classList.remove('has-img'); $id('file2').value='';
-  $id('file2').style.display=''; img2Data=null; img2Set=false;
+  $id('resultSection').classList.remove('show');generated=false;
+  allOutputs=[];selectedOutput=null;
+  var vg=$id('variantsGrid');if(vg)vg.remove();
+  $id('img2').src='';$id('preview2').style.display='none';
+  $id('card2').classList.remove('has-img');$id('file2').value='';
+  $id('file2').style.display='';img2Data=null;img2Set=false;
   window.scrollTo({top:0,behavior:'smooth'});
 });
-
 setupCard(1); setupCard(2);
 </script>
 </body>
