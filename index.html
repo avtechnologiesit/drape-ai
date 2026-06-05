@@ -349,46 +349,45 @@ function setupCard(n){
   });
 }
 
-// Upload image directly from browser to Replicate
-async function uploadToReplicate(dataUrl, filename) {
-  // Get token from our serverless function
-  var tokenResp = await fetch('/api/upload', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-  if(!tokenResp.ok) throw new Error('Could not get upload token');
-  var tokenData = await tokenResp.json();
-  var r8token = tokenData.token;
-
-  // Convert dataUrl to Blob
-  var raw = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-  var mime = dataUrl.startsWith('data:image/') ? dataUrl.split(';')[0].split(':')[1] : 'image/jpeg';
-  var bytes = atob(raw);
-  var arr = new Uint8Array(bytes.length);
-  for(var i=0;i<bytes.length;i++) arr[i]=bytes.charCodeAt(i);
-  var blob = new Blob([arr], {type: mime});
-
-  // Upload directly to Replicate from browser
-  var form = new FormData();
-  form.append('content', blob, filename);
-
-  var uploadResp = await fetch('https://api.replicate.com/v1/files', {
-    method: 'POST',
-    headers: { 'Authorization': 'Token ' + r8token },
-    body: form
+// Resize image to max 800px before uploading (reduces payload size)
+async function resizeImage(dataUrl, maxPx) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width, h = img.height;
+      if(w <= maxPx && h <= maxPx) { resolve(dataUrl); return; }
+      var scale = maxPx / Math.max(w, h);
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.src = dataUrl;
   });
-  if(!uploadResp.ok) {
-    var err = await uploadResp.text();
-    throw new Error('Replicate upload failed: ' + err.slice(0,100));
+}
+
+async function uploadImage(dataUrl, filename) {
+  // Resize first to keep payload small
+  var resized = await resizeImage(dataUrl, 900);
+  var resp = await fetch('/api/upload', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({imageBase64: resized, filename: filename})
+  });
+  if(!resp.ok) {
+    var err = await resp.text();
+    throw new Error('Upload failed (' + resp.status + '): ' + err.slice(0,100));
   }
-  var data = await uploadResp.json();
-  return data.urls.get;
+  var data = await resp.json();
+  if(!data.url) throw new Error('No URL returned from upload');
+  return data.url;
 }
 
 var loadMsgs=[
-  'Uploading your photo to AI...',
-  'Uploading outfit reference...',
-  'Generating try-on seed 1 of 3...',
-  'Generating try-on seed 2 of 3...',
-  'Generating try-on seed 3 of 3...',
-  'Claude is picking the best result...',
+  'Uploading your photo...', 'Uploading outfit reference...',
+  'Running try-on seed 1 of 3...', 'Running try-on seed 2 of 3...',
+  'Running try-on seed 3 of 3...', 'Claude picking best result...',
   'Finalising your try-on...'
 ];
 
@@ -406,32 +405,31 @@ $id('generateBtn').addEventListener('click', async function(){
   var mi=0; $id('loadingText').textContent=loadMsgs[0];
   var iv=setInterval(function(){
     mi=(mi+1)%loadMsgs.length; $id('loadingText').textContent=loadMsgs[mi];
-  },3000);
+  },3500);
 
   try{
-    // Step 1: Describe garment
+    // Describe garment
     var garmentDes='clothing item';
     try{
       var dr=await fetch('/api/describe',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({images:[img2Data],garmentType:$id('garmentType').value})});
-      if(dr.ok){ var dd=await dr.json(); garmentDes=dd.text||garmentDes; }
-    }catch(e){ console.warn('Describe failed:',e.message); }
+      if(dr.ok) garmentDes=(await dr.json()).text||garmentDes;
+    }catch(e){ console.warn('Describe failed'); }
 
-    // Step 2: Upload images directly from browser to Replicate
+    // Category
     var garmentType=$id('garmentType').value;
     var category='upper_body';
     if(garmentType==='Lower Body') category='lower_body';
     else if(garmentType==='Dress / One-piece'||garmentType==='Full Body') category='dresses';
 
-    $id('loadingText').textContent='Uploading images...';
-    var urls = await Promise.all([
-      uploadToReplicate(img1Data, 'person.jpg'),
-      uploadToReplicate(img2Data, 'garment.jpg')
-    ]);
-    var humanUrl = urls[0], garmentUrl = urls[1];
-    console.log('[DRAPE] Uploaded. Person:', humanUrl.slice(-20), 'Garment:', garmentUrl.slice(-20));
+    // Upload via server (10mb limit)
+    $id('loadingText').textContent='Uploading your photo...';
+    var humanUrl = await uploadImage(img1Data, 'person.jpg');
+    $id('loadingText').textContent='Uploading outfit reference...';
+    var garmentUrl = await uploadImage(img2Data, 'garment.jpg');
+    console.log('[DRAPE] Uploads done');
 
-    // Step 3: Call /api/tryon with just URLs (tiny JSON payload)
+    // Call tryon with URLs only
     $id('loadingText').textContent='Running IDM-VTON...';
     var resp=await fetch('/api/tryon',{
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -464,7 +462,8 @@ function showAllResults(outputs, bestUrl){
     var existing=$id('variantsGrid'); if(existing) existing.remove();
     var grid=document.createElement('div'); grid.id='variantsGrid'; grid.className='variants-grid';
     outputs.forEach(function(url,i){
-      var card=document.createElement('div'); card.className='variant-card'+(url===bestUrl?' selected':'');
+      var card=document.createElement('div');
+      card.className='variant-card'+(url===bestUrl?' selected':'');
       card.innerHTML='<img src="'+url+'" alt="Option '+(i+1)+'" style="width:100%;height:100%;object-fit:cover;object-position:top;">'
         +'<div class="variant-label">Option '+(i+1)+(url===bestUrl?'<span class="variant-badge">AI PICK</span>':'')+'</div>';
       card.addEventListener('click',function(){
