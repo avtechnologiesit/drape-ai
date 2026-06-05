@@ -1,1 +1,15 @@
-{"buildCommand": null}
+{
+  "functions": {
+    "api/upload.js": {
+      "maxDuration": 30
+    },
+    "api/tryon.js": {
+      "maxDuration": 120
+    }
+  },
+  "api": {
+    "bodyParser": {
+      "sizeLimit": "10mb"
+    }
+  }
+}
