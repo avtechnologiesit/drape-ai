@@ -370,7 +370,7 @@ async function resizeImage(dataUrl, maxPx) {
 async function uploadImage(dataUrl, filename) {
   // Resize first to keep payload small
   var resized = await resizeImage(dataUrl, 900);
-  var resp = await fetch('/api/upload', {
+  var resp = await fetch('/api/imgupload', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({imageBase64: resized, filename: filename})
