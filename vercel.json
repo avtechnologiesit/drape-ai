@@ -3,7 +3,7 @@
     "api/tryon.js": {
       "maxDuration": 120
     },
-    "api/upload.js": {
+    "api/imgupload.js": {
       "maxDuration": 30
     }
   }
