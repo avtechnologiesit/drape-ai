@@ -2,9 +2,6 @@
   "functions": {
     "api/tryon.js": {
       "maxDuration": 120
-    },
-    "api/imgupload.js": {
-      "maxDuration": 30
     }
   }
 }
