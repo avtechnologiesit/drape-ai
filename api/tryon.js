@@ -39,7 +39,6 @@ export default async function handler(req, res) {
       });
       if (pr.status === 429) {
         var retryAfter = parseInt(pr.headers.get('retry-after') || '12');
-        console.log('Rate limited, waiting', retryAfter + 2, 's');
         await sleep((retryAfter + 2) * 1000);
         continue;
       }
@@ -61,34 +60,83 @@ export default async function handler(req, res) {
     throw new Error('Timeout');
   };
 
-  try {
-    var R8  = process.env.REPLICATE_API_TOKEN;
-    var ANT = process.env.ANTHROPIC_API_KEY;
-    if (!R8) { res.status(500).json({ error: 'REPLICATE_API_TOKEN not set' }); return; }
-
-    var humanUrl   = req.body.humanUrl;
-    var garmentUrl = req.body.garmentUrl;
-    var garmentDes = req.body.garmentDes || 'clothing';
-    var category   = req.body.category   || 'upper_body';
-
-    if (!humanUrl   && req.body.humanBase64)   humanUrl   = await uploadB64(req.body.humanBase64,   'person.jpg',  R8);
-    if (!garmentUrl && req.body.garmentBase64) garmentUrl = await uploadB64(req.body.garmentBase64, 'garment.jpg', R8);
-    if (!humanUrl || !garmentUrl) { res.status(400).json({ error: 'Missing images' }); return; }
-
-    console.log('[tryon] Running 3 seeds with rate-limit handling...');
+  var runIdmVton = async function(humanUrl, garmentUrl, garmentDes, category, R8) {
     var outputs = [];
     var seeds = [42, 123, 777];
     for (var s = 0; s < seeds.length; s++) {
       try {
         if (s > 0) await sleep(11000);
         var predId = await createPred(humanUrl, garmentUrl, garmentDes, category, seeds[s], R8);
-        console.log('[tryon] seed', seeds[s], 'pred', predId);
         var out = await pollPred(predId, R8);
         outputs.push(out);
-        console.log('[tryon] seed', seeds[s], 'done');
-      } catch(e) { console.warn('[tryon] seed', seeds[s], 'failed:', e.message); }
+      } catch(e) { console.warn('[tryon] idm-vton seed', seeds[s], 'failed:', e.message); }
     }
-    if (outputs.length === 0) throw new Error('All seeds failed. Check replicate.com/account/billing');
+    return outputs;
+  };
+
+  var mapCategoryToGarmentType = function(category) {
+    if (category === 'lower_body') return 'lower_body';
+    if (category === 'dresses') return 'dress';
+    return 'upper_body';
+  };
+
+  var runLeffa = async function(humanUrl, garmentUrl, category, FAL) {
+    var garmentType = mapCategoryToGarmentType(category);
+    var sub = await fetch('https://queue.fal.run/fal-ai/leffa/virtual-tryon', {
+      method: 'POST',
+      headers: { 'Authorization': 'Key ' + FAL, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ human_image_url: humanUrl, garment_image_url: garmentUrl, garment_type: garmentType })
+    });
+    var subData = await sub.json();
+    if (!subData.status_url) throw new Error('LEFFA submit failed: ' + JSON.stringify(subData).slice(0, 100));
+
+    for (var i = 0; i < 30; i++) {
+      await sleep(2000);
+      var st = await (await fetch(subData.status_url, { headers: { 'Authorization': 'Key ' + FAL } })).json();
+      if (st.status === 'COMPLETED') {
+        var result = await (await fetch(st.response_url, { headers: { 'Authorization': 'Key ' + FAL } })).json();
+        if (result.image && result.image.url) return [result.image.url];
+        throw new Error('LEFFA result missing image: ' + JSON.stringify(result).slice(0, 100));
+      }
+      if (st.status === 'ERROR') throw new Error('LEFFA error: ' + JSON.stringify(st).slice(0, 100));
+    }
+    throw new Error('LEFFA timed out');
+  };
+
+  try {
+    var R8  = process.env.REPLICATE_API_TOKEN;
+    var ANT = process.env.ANTHROPIC_API_KEY;
+    var FAL = process.env.FAL_API_KEY;
+
+    var humanUrl   = req.body.humanUrl;
+    var garmentUrl = req.body.garmentUrl;
+    var garmentDes = req.body.garmentDes || 'clothing';
+    var category   = req.body.category   || 'upper_body';
+    var engine     = req.body.engine     || 'idm-vton';
+
+    if (!humanUrl   && req.body.humanBase64)   humanUrl   = await uploadB64(req.body.humanBase64,   'person.jpg',  R8);
+    if (!garmentUrl && req.body.garmentBase64) garmentUrl = await uploadB64(req.body.garmentBase64, 'garment.jpg', R8);
+    if (!humanUrl || !garmentUrl) { res.status(400).json({ error: 'Missing images' }); return; }
+
+    var outputs = [];
+    var engineUsed = engine;
+
+    if (engine === 'leffa') {
+      if (!FAL) { res.status(500).json({ error: 'FAL_API_KEY not set' }); return; }
+      try {
+        outputs = await runLeffa(humanUrl, garmentUrl, category, FAL);
+      } catch(e) {
+        console.warn('[tryon] LEFFA failed, falling back to idm-vton:', e.message);
+        if (!R8) throw e;
+        outputs = await runIdmVton(humanUrl, garmentUrl, garmentDes, category, R8);
+        engineUsed = 'idm-vton (fallback)';
+      }
+    } else {
+      if (!R8) { res.status(500).json({ error: 'REPLICATE_API_TOKEN not set' }); return; }
+      outputs = await runIdmVton(humanUrl, garmentUrl, garmentDes, category, R8);
+    }
+
+    if (outputs.length === 0) throw new Error('All generations failed. Check provider balance and dashboards.');
 
     var best = outputs[0];
     if (outputs.length > 1 && ANT) {
@@ -113,11 +161,10 @@ export default async function handler(req, res) {
         var cd = await cr.json();
         var pick = parseInt((cd.content && cd.content[0] ? cd.content[0].text : '1').trim()) || 1;
         best = outputs[Math.min(Math.max(pick - 1, 0), outputs.length - 1)];
-        console.log('[tryon] Claude picked', pick, 'of', outputs.length);
       } catch(e) { console.warn('[tryon] pick failed:', e.message); }
     }
 
-    res.status(200).json({ output: best, all_outputs: outputs, seeds_used: outputs.length });
+    res.status(200).json({ output: best, all_outputs: outputs, seeds_used: outputs.length, engine: engineUsed });
   } catch(err) {
     console.error('[tryon]', err.message);
     res.status(500).json({ error: err.message });
