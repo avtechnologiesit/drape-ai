@@ -183,7 +183,7 @@ export default function Studio() {
 
   return (
     <>
-      <Head><title>Studio \u2014 Drape</title></Head>
+      <Head><title>Studio — Drape</title></Head>
       <main className="page">
         <div className="studio-bar">
           <span className="label">Engine</span>
@@ -198,7 +198,7 @@ export default function Studio() {
           <div className="alert alert-info">{credits} credit{credits === 1 ? '' : 's'} remaining on your account.</div>
         )}
         {authConfigured && session === null && (
-          <div className="alert alert-info">Sign in to save your results and track credits \u2014 generating still works, you'll just be asked to sign in first.</div>
+          <div className="alert alert-info">Sign in to save your results and track credits — generating still works, you'll just be asked to sign in first.</div>
         )}
 
         <div className="upload-grid">
@@ -224,13 +224,13 @@ export default function Studio() {
 
         <div className="generate-wrap">
           <button className="generate-btn" onClick={generate} disabled={generating}>
-            {generating ? 'Generating\u2026' : 'Generate Try-On'}
+            {generating ? 'Generating…' : 'Generate Try-On'}
           </button>
           {authConfigured && <div className="credit-note">Uses 1 credit per generation</div>}
         </div>
 
         <div className="ai-box">
-          <div className="ai-box-title">AI Fashion Stylist \u2014 Claude</div>
+          <div className="ai-box-title">AI Fashion Stylist — Claude</div>
           <div className="ai-input-row">
             <input type="text" className="ai-input" placeholder="Ask about fit, colour, what to pair with this outfit..."
               value={aiQuestion} onChange={e => setAiQuestion(e.target.value)}
@@ -265,9 +265,9 @@ export default function Studio() {
                 <div className="score-sub">Compatibility rating</div>
               </div>
               <div className="actions-box">
-                <button className="action-btn primary" onClick={() => { const a = document.createElement('a'); a.href = selected; a.download = 'drape-tryon.jpg'; a.click(); }}>\u2193 Download HD Image</button>
-                <button className="action-btn" onClick={() => { if (navigator.share) navigator.share({ title: 'My DRAPE Try-On', url: location.href }); else { navigator.clipboard?.writeText(location.href); toast('Link copied!'); } }}>\u2197 Share Look</button>
-                <button className="action-btn" onClick={tryAnother}>\u21ba Try Another Outfit</button>
+                <button className="action-btn primary" onClick={() => { const a = document.createElement('a'); a.href = selected; a.download = 'drape-tryon.jpg'; a.click(); }}>↓ Download HD Image</button>
+                <button className="action-btn" onClick={() => { if (navigator.share) navigator.share({ title: 'My DRAPE Try-On', url: location.href }); else { navigator.clipboard?.writeText(location.href); toast('Link copied!'); } }}>↗ Share Look</button>
+                <button className="action-btn" onClick={tryAnother}>↺ Try Another Outfit</button>
               </div>
             </div>
           </div>
