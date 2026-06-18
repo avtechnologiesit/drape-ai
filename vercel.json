@@ -1,7 +1,8 @@
 {
   "functions": {
-    "api/tryon.js": {
-      "maxDuration": 120
-    }
+    "pages/api/tryon.js": { "maxDuration": 120 },
+    "pages/api/describe.js": { "maxDuration": 30 },
+    "pages/api/checkout/create-order.js": { "maxDuration": 30 },
+    "pages/api/checkout/verify-payment.js": { "maxDuration": 30 }
   }
 }
