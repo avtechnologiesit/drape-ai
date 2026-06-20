@@ -1,6 +1,8 @@
 import { getUserFromRequest, supabaseAdmin, adminConfigured, getOrCreateProfile } from '../../lib/supabaseAdmin';
 import { TRIAL_CREDITS } from '../../lib/plans';
 
+export const maxDuration = 120; // allow up to 120s for the 3-seed generation flow
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function uploadB64(dataUrl, filename, R8) {
