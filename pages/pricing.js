@@ -74,8 +74,8 @@ export default function Pricing() {
       <Head><title>Pricing — Drape</title></Head>
       <main className="page">
         <div className="section-label">Pricing</div>
-        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: '2.6rem', marginBottom: 12 }}>Simple, credit-based plans</h1>
-        <p style={{ fontSize: '.8rem', color: 'var(--warm-gray)', maxWidth: 560, marginBottom: 8, lineHeight: 1.7 }}>
+        <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 'clamp(2.6rem, 4vw, 3.6rem)', marginBottom: 12 }}>Simple, credit-based plans</h1>
+        <p style={{ fontSize: '1.05rem', color: 'var(--warm-gray)', maxWidth: 560, marginBottom: 8, lineHeight: 1.7 }}>
           One credit equals one try-on generation — three AI-picked results included. Every new account starts with {TRIAL_CREDITS} free credits, no card required.
         </p>
         {notice && <div className="alert alert-info" style={{ marginTop: 24 }}>{notice}</div>}
